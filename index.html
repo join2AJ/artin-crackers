@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>Patakha — Diwali Crackers Simulator · ARTIN Studios</title>
+  <meta name="description" content="Patakha by ARTIN Studios: burst anar, chakri, rockets, ladi and sutli bombs with realistic sound, vibration and flashlight. Blow out the diyas with your breath. All the dhamaka, none of the smoke." />
+  <meta name="theme-color" content="#07040f" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta property="og:title" content="Patakha — Diwali Crackers Simulator" />
+  <meta property="og:description" content="Anar, chakri, rockets, ladi and bombs with real sound, vibration and flashlight. Pollution-free Diwali." />
+  <link rel="preload" href="fonts/ChakraPetch-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="css/fonts.css" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="mk-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".45" stop-color="#ffb627"/><stop offset="1" stop-color="#e2531c"/></linearGradient>
+      <radialGradient id="mk-bg" cx=".5" cy=".42" r=".7"><stop offset="0" stop-color="#3a1640"/><stop offset="1" stop-color="#0b0614"/></radialGradient>
+      <symbol id="mark" viewBox="0 0 64 64">
+        <path d="M32 4 L56 12 V31 C56 45 46 54 32 60 C18 54 8 45 8 31 V12 Z" fill="url(#mk-bg)"/>
+        <path class="m-shield" pathLength="1" d="M32 4 L56 12 V31 C56 45 46 54 32 60 C18 54 8 45 8 31 V12 Z" fill="none" stroke="#ffb627" stroke-width="2.6" stroke-linejoin="round"/>
+        <g class="m-spark" fill="none" stroke="#fff3c9" stroke-width="1.5" stroke-linecap="round">
+          <path pathLength="1" d="M32 19 V8"/><path pathLength="1" d="M32 19 Q29 11 24 10"/><path pathLength="1" d="M32 19 Q35 11 40 10"/>
+          <path pathLength="1" d="M32 19 Q26 14 19 17"/><path pathLength="1" d="M32 19 Q38 14 45 17"/>
+        </g>
+        <g class="m-drops" fill="#ffd36b"><circle cx="32" cy="6.4" r="1.1"/><circle cx="22.4" cy="10.2" r=".9"/><circle cx="41.6" cy="10.2" r=".9"/><circle cx="17.6" cy="18" r=".8"/><circle cx="46.4" cy="18" r=".8"/></g>
+        <path class="m-a" d="M32 19 L47.5 49 L40.5 49 L32 32 L23.5 49 L16.5 49 Z" fill="url(#mk-a)"/>
+        <path class="m-bar" d="M20.5 41.5 H43.5" stroke="#fff3c9" stroke-width="2.6"/>
+      </symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></symbol>
+      <symbol id="i-torch" viewBox="0 0 24 24"><path d="M8 2h8v4l-2 4v12h-4V10L8 6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 13v3" stroke="currentColor" stroke-width="2"/></symbol>
+      <symbol id="i-diya" viewBox="0 0 24 24"><path d="M3 14c2 5 16 5 18 0z" fill="currentColor"/><path d="M12 3c-2 3-2.5 5-0 8 2.5-3 2-5 0-8z" fill="currentColor" opacity=".85"/><path d="M17 13l4-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v10H6z" fill="currentColor"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M4 20C4 9 11 4 21 4c0 10-5 17-16 16z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 20L14 10" stroke="currentColor" stroke-width="2"/></symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8M18.5 5.5a8.5 8.5 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+      <symbol id="i-vib" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 8v8M21 8v8" stroke="currentColor" stroke-width="2"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- ============================== SPLASH ============================== -->
+  <div class="splash" id="splash" aria-hidden="true">
+    <div class="splash-in">
+      <svg class="splash-mark"><use href="#mark"/></svg>
+      <div class="splash-game">PATAKHA</div>
+      <div class="splash-hi">पटाखा</div>
+      <div class="splash-studio">by ARTIN <span>Studios</span></div>
+    </div>
+  </div>
+
+  <!-- ============================== STAGE ============================== -->
+  <main class="stage" id="stage" aria-label="Rooftop at night. Tap the terrace to light the selected cracker.">
+    <canvas id="sky"></canvas>
+    <canvas id="props"></canvas>
+    <canvas id="fx"></canvas>
+    <div class="flashes" id="flashes"></div>
+  </main>
+
+  <header class="hud">
+    <div class="brand">
+      <svg class="brand-mark"><use href="#mark"/></svg>
+      <div><b>PATAKHA</b><small>by ARTIN Studios</small></div>
+    </div>
+    <div class="tally cut" id="tally" title="Crackers lit tonight"><b id="litCount">0</b> lit <span class="sep">·</span> <svg><use href="#i-leaf"/></svg> <span class="smoke-txt">0 g smoke</span></div>
+    <div class="hud-btns">
+      <button class="icon-btn cut" id="btnDiya" aria-label="Blow out the diyas (microphone)" aria-pressed="false"><svg><use href="#i-diya"/></svg></button>
+      <button class="icon-btn cut" id="btnTorch" aria-label="Flashlight bursts" aria-pressed="false"><svg><use href="#i-torch"/></svg></button>
+      <button class="icon-btn cut" id="btnSettings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+    </div>
+  </header>
+
+  <div class="mic-pill cut" id="micPill" hidden>
+    <span>Blow on the mic to put out the diyas</span>
+    <i class="meter"><i id="micLevel"></i></i>
+  </div>
+  <div class="hint" id="hint">Tap the terrace to light the Anar</div>
+
+  <nav class="tray" id="tray" aria-label="Crackers"></nav>
+
+  <!-- ============================== WELCOME ============================== -->
+  <div class="sheet-wrap" id="welcome" hidden>
+    <div class="sheet cut welcome">
+      <svg class="welcome-mark"><use href="#mark"/></svg>
+      <p class="eyebrow">Shubh Deepavali · शुभ दीपावली</p>
+      <h2>All the <em>dhamaka</em>.<br/>None of the smoke.</h2>
+      <p class="lead">Anar, chakri, rockets, ladi and sutli bombs with sound made for each cracker. Your phone vibrates with every blast and the flashlight flashes with it.</p>
+      <ul class="feat">
+        <li><svg><use href="#i-sound"/></svg><span><b>Turn the volume up</b>, ideally with headphones or a speaker.</span></li>
+        <li><svg><use href="#i-vib"/></svg><span><b>Vibration</b> follows each cracker's sound.</span></li>
+        <li><svg><use href="#i-diya"/></svg><span><b>Blow on the mic</b> to put out the diyas, then tap them to light them again.</span></li>
+      </ul>
+      <button class="btn-primary cut" id="btnStart"><svg><use href="#i-play"/></svg> Light it up</button>
+      <p class="fine">A simulator for fun. No real fire, no smoke, no noise for your neighbours' pets.</p>
+    </div>
+  </div>
+
+  <!-- ============================== SETTINGS ============================== -->
+  <div class="sheet-wrap" id="settings" hidden>
+    <div class="sheet cut" role="dialog" aria-labelledby="setTitle">
+      <div class="sheet-head"><h3 id="setTitle">Settings</h3><button class="icon-btn sm cut" data-close aria-label="Close"><svg><use href="#i-close"/></svg></button></div>
+      <div class="rows">
+        <label class="row"><span>Volume</span><input type="range" id="optVol" min="0" max="1" step="0.05" /></label>
+        <label class="row"><span>Vibration</span><input type="checkbox" class="sw" id="optVib" /></label>
+        <label class="row"><span>Vibration strength</span><input type="range" id="optVibK" min="0.4" max="1.6" step="0.1" /></label>
+        <label class="row"><span>Flashlight bursts</span><input type="checkbox" class="sw" id="optTorch" /></label>
+        <label class="row"><span>Neighbourhood fireworks</span><input type="checkbox" class="sw" id="optAmbient" /></label>
+        <label class="row"><span>Screen shake</span><input type="checkbox" class="sw" id="optShake" /></label>
+      </div>
+      <p class="note" id="torchNote"></p>
+
+      <section class="shop" id="shop" hidden>
+        <h4>Unlock everything</h4>
+        <div class="products" id="products"></div>
+        <div class="shop-foot"><button class="btn-ghost cut" id="btnRestore">Restore purchases</button><button class="btn-ghost cut" id="btnPrivacyOpts" hidden>Ad privacy options</button></div>
+        <p class="note" id="shopNote"></p>
+        <p class="note mono" id="adStatus" hidden></p>
+      </section>
+
+      <section class="green">
+        <h4><svg><use href="#i-leaf"/></svg> A green and safe Diwali</h4>
+        <p>If you do burst real crackers tonight:</p>
+        <ul>
+          <li>Prefer green crackers, and follow your city's rules on timings.</li>
+          <li>Keep a bucket of water or sand nearby and wear cotton clothes.</li>
+          <li>Light at arm's length, then walk away. Never relight a dud.</li>
+          <li>Keep children supervised, and think of pets, older people and patients nearby.</li>
+        </ul>
+      </section>
+
+      <div class="about">
+        <svg class="about-mark"><use href="#mark"/></svg>
+        <div>
+          <b>Patakha</b> <span class="mono" id="verLine">v0.1.0</span><br/>
+          <span class="muted">by ARTIN Studios · <a href="privacy.html" id="lnkPrivacy">Privacy</a> · <a href="mailto:artinstudios.official@gmail.com">Contact</a></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== UNLOCK ============================== -->
+  <div class="sheet-wrap" id="unlock" hidden>
+    <div class="sheet cut unlock" role="dialog" aria-labelledby="unTitle">
+      <div class="sheet-head"><h3 id="unTitle">Unlock</h3><button class="icon-btn sm cut" data-close aria-label="Close"><svg><use href="#i-close"/></svg></button></div>
+      <div class="un-art" id="unArt"></div>
+      <p class="lead" id="unBlurb"></p>
+      <button class="btn-primary cut" id="btnWatch"><svg><use href="#i-play"/></svg> <span>Watch a short video · free for 24 h</span></button>
+      <button class="btn-ghost cut wide" id="btnBuyAll"></button>
+      <p class="note" id="unNote"></p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

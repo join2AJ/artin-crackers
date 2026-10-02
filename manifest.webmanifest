@@ -1,0 +1,19 @@
+{
+  "name": "Patakha — Diwali Crackers Simulator",
+  "short_name": "Patakha",
+  "description": "Burst anar, chakri, rockets, ladi and sutli bombs with realistic sound, vibration and flashlight. Pollution-free Diwali by ARTIN Studios.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#07040f",
+  "theme_color": "#07040f",
+  "categories": ["games", "entertainment", "lifestyle"],
+  "lang": "en-IN",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
