@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.1.0] — 2026-10-02 · Play build 1
+## [0.1.0] — 2026-10-02 · Play build 1 · `7e2923f`
 ### Added
 - First version of the Patakha web app (Diwali Crackers Simulator) by ARTIN Studios.
 - **Nine crackers:** Anar, Chakri, Rocket, Ladi (100-wala), Sutli Bomb and Phuljhadi are free. 1000-wala, Sky Shot (12 shots) and Atom Bomb are premium.
