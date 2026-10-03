@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.4.0] — 2026-10-03 · Play build 4
+## [0.4.0] — 2026-10-03 · Play build 4 · `710ea4d`
 ### Changed
 - **Fresh, eco-first look.** New palette: emerald for the green-Diwali highlight and main actions, warm gold for festive touches and Hindi, on a midnight-teal base. Frosted-glass panels, softer cut corners and a glowing primary button replace the old plum-and-marigold look.
 - **Saving the air is now the headline.** The splash says "Green Diwali · Zero smoke", and the welcome reads "Celebrate Diwali. Save the air." The top bar has an **eco meter**: CO₂ saved tonight, crackers lit, and a ring that fills towards your next green badge.
