@@ -9,6 +9,8 @@ const TORAN = ['#ff4b4b', '#ffd23f', '#53ff8f', '#5aa9ff', '#ff5ec4', '#ffffff']
 
 // Background themes. sky = 4 gradient stops top→horizon; wall = where the diyas stand.
 export const THEMES = {
+  green: { name: 'Green City', hi: 'हरित शहर', sky: ['#010a08', '#03201a', '#0b3a30', '#1f5a44'], haze: 'rgba(120,255,180,0.16)', stars: 1.4,
+    wall: ['#46684a', '#30503a', '#1c3424'], floor: ['#0b1a13', '#12291c'], ground: 'tiles', wallStyle: 'planter', rangoli: true, aurora: true, fireflies: true },
   city: { name: 'Rooftop', hi: 'छत', sky: ['#04020b', '#0d0722', '#24103a', '#4a1d3c'], haze: 'rgba(255,140,60,0.22)', stars: 1,
     wall: ['#3b2a4a', '#2a1d37', '#1a1124'], floor: ['#120b1a', '#1c1226'], ground: 'tiles', rangoli: true },
   home: { name: 'Home', hi: 'घर-आँगन', sky: ['#04020b', '#0f0824', '#271238', '#4b2140'], haze: 'rgba(255,150,80,0.18)', stars: 1,
@@ -36,7 +38,7 @@ export class Scene {
     this.sky = sky; this.sc = sky.getContext('2d');
     this.props = props; this.pc = props.getContext('2d');
     this.diyas = []; this.bulbs = []; this.debris = []; this.smoke = []; this.rings = []; this.scorch = []; this.lights = [];
-    this.wind = 0; this.theme = 'city'; this.fires = []; this.kandils = []; this.flakes = []; this.beams = [];
+    this.wind = 0; this.theme = 'green'; this.fires = []; this.kandils = []; this.flakes = []; this.beams = []; this.turbines = []; this.flies = [];
   }
 
   resize(w, h, dpr, trayH) {
@@ -75,6 +77,7 @@ export class Scene {
     T.sky.forEach((col, i) => g.addColorStop([0, 0.55, 0.86, 1][i], col));
     c.fillStyle = g; c.fillRect(0, 0, w, H + 2);
     if (T.milky) this.milkyWay(c, r);
+    if (T.aurora) this.aurora(c, r);
     // stars (no moon: Diwali falls on the new-moon night)
     for (let i = 0, n = Math.round(((w * H) / 2600) * T.stars); i < n; i++) {
       const x = r() * w, y = r() * H * 0.88, b = r();
@@ -86,7 +89,8 @@ export class Scene {
     hz.addColorStop(0, 'rgba(0,0,0,0)'); hz.addColorStop(1, T.haze);
     c.fillStyle = hz; c.fillRect(0, H - 90 * u, w, 90 * u);
 
-    this.bulbs = []; this.fires = []; this.kandils = []; this.beams = [];
+    this.bulbs = []; this.fires = []; this.kandils = []; this.beams = []; this.turbines = [];
+    this.flies = T.fireflies ? Array.from({ length: 26 }, () => ({ x: r() * w, y: H + r() * (h - H) * 0.8, ph: r() * 6, vx: (r() - 0.5) * 0.3, vy: (r() - 0.5) * 0.2 })) : [];
     this.flakes = T.weather ? Array.from({ length: T.weather === 'snow' ? 140 : 50 }, () => ({ x: r() * w, y: T.weather === 'snow' ? r() * h : H + r() * (h - H), s: 0.6 + r() * 1.6, ph: r() * 6 })) : [];
     if (this.theme === 'village') this.torans(r, this.village(c, r, H), 0.45);
     else if (this.theme === 'ghat') this.ghat(c, r, H);
@@ -97,6 +101,7 @@ export class Scene {
     else if (this.theme === 'palace') this.palace(c, r, H);
     else if (this.theme === 'camp') this.camp(c, r, H);
     else if (this.theme === 'home') this.home(c, r, H);
+    else if (this.theme === 'green') this.greenCity(c, r, H);
     else {
       this.skyline(c, r, H, 0.55, '#1a0f2c', 0.18);
       this.torans(r, this.skyline(c, r, H, 1, '#0d0718', 0.65, true), 0.65);
@@ -286,6 +291,21 @@ export class Scene {
       c.fillStyle = 'rgba(80,60,40,0.45)';
       for (let x = 3 * u; x < w; x += 9 * u) { c.beginPath(); c.ellipse(x + 2.5 * u, H + wh * 0.55, 2.2 * u, wh * 0.32, 0, 0, Math.PI * 2); c.fill(); }
       c.fillStyle = '#f3e6d0'; c.fillRect(0, H, w, 2.5 * u); c.fillRect(0, H + wh - 2 * u, w, 2 * u);
+    } else if (style === 'planter') {
+      // tulsi and fern pots between the diya pairs
+      c.fillStyle = 'rgba(0,0,0,0.15)'; for (let x = 0; x < w; x += 14 * u) c.fillRect(x, H + wh * 0.5, 7 * u, 1);
+      const pairs = Math.max(3, Math.floor(w / (92 * u)));
+      for (let i = 0; i <= pairs; i++) {
+        const px = (w / pairs) * i;
+        if (px < 8 * u || px > w - 8 * u) continue;
+        c.fillStyle = '#a4532c'; c.beginPath(); c.moveTo(px - 6 * u, H - 9 * u); c.lineTo(px + 6 * u, H - 9 * u); c.lineTo(px + 4.6 * u, H); c.lineTo(px - 4.6 * u, H); c.fill();
+        c.fillStyle = '#c96a3a'; c.fillRect(px - 6.6 * u, H - 10.4 * u, 13.2 * u, 2 * u);
+        for (let k = 0; k < 9; k++) {
+          const a = -Math.PI / 2 + (k / 8 - 0.5) * 2.4, L = (8 + r() * 7) * u;
+          c.strokeStyle = k % 2 ? '#2f9a4e' : '#4cc36a'; c.lineWidth = 2.2 * u; c.lineCap = 'round';
+          c.beginPath(); c.moveTo(px, H - 10 * u); c.quadraticCurveTo(px + Math.cos(a) * L * 0.5, H - 10 * u + Math.sin(a) * L * 0.9, px + Math.cos(a) * L, H - 10 * u + Math.sin(a) * L * 0.75); c.stroke();
+        }
+      }
     } else if (style === 'snow') {
       c.fillStyle = '#f5f9ff';
       c.beginPath(); c.moveTo(0, H + 2 * u); for (let x = 0; x <= w + 6; x += 6) c.lineTo(x, H - (1.5 + Math.sin(x / (13 * u)) * 1.2 + r() * 0.8) * u); c.lineTo(w, H + 2 * u); c.fill();
@@ -457,6 +477,48 @@ export class Scene {
     for (let k = 0; k <= 30; k++) { const t = k / 30; this.bulbs.push({ x: hx - 10 * u + (hw + 20 * u) * t, y: top - 26 * u * (1 - Math.abs(t - 0.5) * 2), c: k % TORAN.length, ph: 0 }); }
   }
 
+  /** Soft green aurora-like glow over the horizon. */
+  aurora(c, r) {
+    const w = this.w, H = this.horizon;
+    c.save(); c.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 3; k++) {
+      const y0 = H * (0.32 + k * 0.12), amp = H * 0.05;
+      const g = c.createLinearGradient(0, y0 - H * 0.12, 0, y0 + H * 0.1);
+      g.addColorStop(0, 'rgba(60,255,170,0)'); g.addColorStop(0.6, `rgba(60,255,170,${0.07 - k * 0.015})`); g.addColorStop(1, 'rgba(60,255,170,0)');
+      c.fillStyle = g; c.beginPath(); c.moveTo(0, y0 + H * 0.1);
+      for (let x = 0; x <= w + 10; x += 10) c.lineTo(x, y0 - H * 0.12 + Math.sin(x / (w * 0.18) + k * 2 + r()) * amp);
+      c.lineTo(w, y0 + H * 0.1); c.fill();
+    }
+    c.restore();
+  }
+
+  /** Green City: wind turbines on the hills, rooftop gardens and solar panels. */
+  greenCity(c, r, H) {
+    const u = this.u, w = this.w;
+    const hill = (x) => H - (40 + 14 * Math.sin(x / (110 * u) + 0.6) + 7 * Math.sin(x / (43 * u))) * u;
+    c.fillStyle = '#082419'; c.beginPath(); c.moveTo(0, H); for (let x = 0; x <= w + 8; x += 6) c.lineTo(x, hill(x)); c.lineTo(w, H); c.fill();
+    const n = Math.max(3, Math.round(w / (120 * u)));
+    for (let i = 0; i < n; i++) {
+      const x = (w / n) * (i + 0.3 + r() * 0.4), base = hill(x) + 2 * u, th = (38 + r() * 14) * u;
+      c.fillStyle = '#9fbcb0'; c.beginPath(); c.moveTo(x - 1.2 * u, base); c.lineTo(x - 0.5 * u, base - th); c.lineTo(x + 0.5 * u, base - th); c.lineTo(x + 1.2 * u, base); c.fill();
+      this.turbines.push({ x, y: base - th, L: th * 0.55, ph: r() * 6, sp: 0.6 + r() * 0.5 });
+    }
+    this.skyline(c, r, H, 0.5, '#0c2a20', 0.15);
+    const tops = this.skyline(c, r, H, 1, '#061812', 0.6, true);
+    for (const t of tops) {
+      if (r() < 0.55) { // rooftop garden
+        for (let k = 0; k < 4; k++) { c.fillStyle = k % 2 ? '#15442a' : '#1d5a36'; c.beginPath(); c.arc(t.x + (k - 1.5) * 6 * u, t.y - (5 + r() * 5) * u, (5 + r() * 3) * u, 0, Math.PI * 2); c.fill(); }
+      } else { // solar panels
+        for (let k = 0; k < 3; k++) {
+          const px = t.x - 14 * u + k * 10 * u, py = t.y - 2 * u;
+          c.fillStyle = '#1b3a6a'; c.beginPath(); c.moveTo(px, py); c.lineTo(px + 9 * u, py); c.lineTo(px + 7 * u, py - 6 * u); c.lineTo(px - 2 * u, py - 6 * u); c.fill();
+          c.strokeStyle = 'rgba(140,200,255,0.4)'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(px + 1, py - 3 * u); c.lineTo(px + 8 * u, py - 3 * u); c.stroke();
+        }
+      }
+    }
+    this.torans(r, tops, 0.5);
+  }
+
   /** Per-frame living details: campfire, kandils, searchlight, snow or sand. */
   drawLiving(c, now) {
     const u = this.u, t = now / 1000;
@@ -479,6 +541,25 @@ export class Scene {
       c.beginPath(); for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 - Math.PI / 2, rr = (i % 2 ? 3 : 7) * u; c.lineTo(Math.cos(a) * rr, 7 * u + Math.sin(a) * rr); } c.fill();
       c.globalAlpha = 0.25; c.beginPath(); c.arc(0, 7 * u, 14 * u, 0, Math.PI * 2); c.fill();
       c.fillStyle = k.col; c.globalAlpha = 0.7; for (let i = -1; i <= 1; i++) c.fillRect(i * 2 * u, 14 * u, 0.8 * u, 7 * u);
+      c.restore();
+    }
+    for (const tb of this.turbines) {
+      const a0 = t * tb.sp * 2 + tb.ph;
+      c.strokeStyle = 'rgba(200,225,215,0.85)'; c.lineWidth = 1.3 * u; c.lineCap = 'round';
+      for (let k = 0; k < 3; k++) { const a = a0 + (k * Math.PI * 2) / 3; c.beginPath(); c.moveTo(tb.x, tb.y); c.lineTo(tb.x + Math.cos(a) * tb.L, tb.y + Math.sin(a) * tb.L); c.stroke(); }
+      c.fillStyle = '#d7ece4'; c.beginPath(); c.arc(tb.x, tb.y, 1.4 * u, 0, Math.PI * 2); c.fill();
+      c.fillStyle = (Math.floor(t * 1.2 + tb.ph) % 2) ? 'rgba(255,60,60,0.9)' : 'rgba(255,60,60,0.25)'; c.beginPath(); c.arc(tb.x, tb.y - 2 * u, 0.9 * u, 0, Math.PI * 2); c.fill();
+    }
+    if (this.flies.length) {
+      c.save(); c.globalCompositeOperation = 'lighter';
+      for (const f of this.flies) {
+        f.x += f.vx * u + Math.sin(t * 0.7 + f.ph) * 0.15 * u; f.y += f.vy * u + Math.cos(t * 0.9 + f.ph) * 0.12 * u;
+        if (f.x < 0) f.x = this.w; if (f.x > this.w) f.x = 0;
+        if (f.y < this.horizon - 20 * u || f.y > this.h) f.vy *= -1;
+        const a = 0.25 + 0.75 * Math.max(0, Math.sin(t * 2 + f.ph));
+        c.fillStyle = `rgba(190,255,120,${a * 0.25})`; c.beginPath(); c.arc(f.x, f.y, 4 * u, 0, Math.PI * 2); c.fill();
+        c.fillStyle = `rgba(220,255,160,${a})`; c.beginPath(); c.arc(f.x, f.y, 1.1 * u, 0, Math.PI * 2); c.fill();
+      }
       c.restore();
     }
     for (const b of this.beams) {

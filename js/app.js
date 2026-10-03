@@ -10,9 +10,11 @@ import { Mic } from './mic.js';
 import { Store, PRODUCTS, ls, fmtLeft } from './store.js';
 
 const $ = (s) => document.querySelector(s);
-const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'city', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green' }, ls.get('settings', {}));
+const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'green', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green' }, ls.get('settings', {}));
 const save = () => ls.set('settings', settings);
 if (!byId[settings.sel]) settings.sel = 'anar';
+// v0.5: Green City becomes the default background once for everyone
+if (!settings.greenDefault) { settings.theme = 'green'; settings.greenDefault = true; }
 
 // ------------------------------------------------------------------ stage
 const stageEl = $('#stage'), trayEl = $('#tray'), flashesEl = $('#flashes');
@@ -368,12 +370,12 @@ function drawCard() {
   const cv = $('#cardCanvas'), c = cv.getContext('2d'), W = cv.width, H = cv.height, name = $('#cardName').value.trim(), style = settings.cardStyle;
   c.save();
   c.drawImage(snap, 0, 0);
-  const shade = (y0, y1, a0, a1) => { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, `rgba(5,3,11,${a0})`); g.addColorStop(1, `rgba(5,3,11,${a1})`); c.fillStyle = g; c.fillRect(0, y0, W, y1 - y0); };
+  const shade = (y0, y1, a0, a1) => { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, `rgba(2,14,9,${a0})`); g.addColorStop(1, `rgba(2,14,9,${a1})`); c.fillStyle = g; c.fillRect(0, y0, W, y1 - y0); };
   const spaced = (txt, x, y, sp) => { if ('letterSpacing' in c) c.letterSpacing = sp + 'px'; c.fillText(txt, x, y); if ('letterSpacing' in c) c.letterSpacing = '0px'; };
   c.textAlign = 'center'; c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 24;
   let nameY = H - 150;
   if (style === 'minimal') {
-    c.fillStyle = 'rgba(5,3,11,0.55)'; c.fillRect(0, 0, W, H);
+    c.fillStyle = 'rgba(2,14,9,0.55)'; c.fillRect(0, 0, W, H);
     c.shadowBlur = 0; c.strokeStyle = '#ffb627'; c.lineWidth = 2; c.beginPath(); c.moveTo(W / 2 - 120, H / 2 + 30); c.lineTo(W / 2 + 120, H / 2 + 30); c.stroke();
     c.fillStyle = '#fff4e2'; c.font = '104px "Yatra One", sans-serif'; c.fillText('शुभ दीपावली', W / 2, H / 2 - 30);
     c.font = '600 40px "Chakra Petch", sans-serif'; c.fillStyle = '#ffb627'; spaced('HAPPY DIWALI', W / 2, H / 2 + 100, 16);
@@ -828,7 +830,7 @@ async function prewarm() {
 function start() {
   Haptics.enabled = settings.vib; Haptics.intensity = settings.vibK; Audio.setVolume(settings.vol);
   Mic.sensitivity = settings.micSens; setMuted(settings.muted); setLighter(LIGHTERS[settings.lighter] ? settings.lighter : 'agarbatti');
-  if (!THEMES[settings.theme]) settings.theme = 'city';
+  if (!THEMES[settings.theme]) settings.theme = 'green';
   scene.setTheme(settings.theme);
   updateEcoMeter();
   renderTray(); resize(); select(settings.sel);

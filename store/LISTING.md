@@ -39,7 +39,7 @@ Everything to paste into Play Console. Character limits are in brackets.
 >
 > ✨ FEATURES
 > • Light it for real: set a cracker down and hold an agarbatti, candle or phuljhadi to its fuse
-> • 10 backgrounds: rooftop, home, village, river ghat, palace, Himalaya snow, desert, border post, camp, open sky
+> • 11 backgrounds: Green City (wind turbines, rooftop gardens, fireflies), rooftop, home, village, river ghat, palace, Himalaya snow, desert, border post, camp, open sky
 > • See how much CO₂ and smoke you saved, and how bad the air would have got
 > • About Diwali: why we celebrate, the five days and the dates, with a countdown
 > • Field manual for every cracker: how it works and how to stay safe

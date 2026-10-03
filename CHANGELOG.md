@@ -9,6 +9,14 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-03 · Play build 5
+### Added
+- **Green City background**, now the default for everyone: a deep teal-green night with a soft aurora glow, wind turbines turning on the hills (with blinking red tip lights), rooftop gardens and solar panels on the buildings, tulsi and fern planters along the wall, and fireflies drifting over the terrace. Eleven backgrounds in all.
+### Changed
+- **A greener look throughout.** Forest-green frosted panels, top bar, tray, sheets, settings rows and pop-ups replace the midnight-blue ones. The splash screen glows green, the logo shield and app icon have a deep green core, and greeting-card shading is green-black.
+- Browser theme colour is now `#03100b`.
+- Service-worker cache bumped to `patakha-v5`.
+
 ## [0.4.0] — 2026-10-03 · Play build 4 · `710ea4d`
 ### Changed
 - **Fresh, eco-first look.** New palette: emerald for the green-Diwali highlight and main actions, warm gold for festive touches and Hindi, on a midnight-teal base. Frosted-glass panels, softer cut corners and a glowing primary button replace the old plum-and-marigold look.
