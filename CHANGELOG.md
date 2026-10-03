@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.3.0] — 2026-10-03 · Play build 3
+## [0.3.0] — 2026-10-03 · Play build 3 · `5997852`
 ### Added
 - **Real lighting.** Tap the ground to set a cracker down unlit, then press and drag your lighter to its fuse. Hold it there a moment and the fuse catches with a fizz of sparks, then it goes off. Choose the lighter from the rail: **agarbatti** (glowing tip and incense smoke), **candle** or **phuljhadi**. The old tap-to-light-at-once way is still in Settings (*Real lighting* off).
 - **Six new backgrounds**, ten in all: **Home** (the family house with a marigold toran, swaying kandil lanterns and the family on the balcony), **Palace** (domes, chhatris and arches outlined in lamps), **Himalaya** (snow peaks, snowy pines, a lit chalet and falling snow), **Desert** (dunes, a fort, camels, tents and drifting sand), **Border Post** (barracks, a watchtower with a sweeping searchlight, tents and the tricolour) and **Camp** (forest, tents and a crackling campfire).
