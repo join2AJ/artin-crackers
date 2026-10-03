@@ -5,6 +5,17 @@
 
 import { rng } from './synth.js';
 
+// Comic style: bold ink outlines and flat, hard-edged (cel) shading.
+export const INK = '#07120d';
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+/** Colour at t (0..1) along gradient stops [[t, '#hex'], …]. */
+function lerpStops(stops, t) {
+  let i = 0; while (i < stops.length - 2 && t > stops[i + 1][0]) i++;
+  const [t0, c0] = stops[i], [t1, c1] = stops[i + 1], k = Math.max(0, Math.min(1, (t - t0) / (t1 - t0 || 1)));
+  const a = hexRgb(c0), b = hexRgb(c1);
+  return `rgb(${a.map((v, j) => Math.round(v + (b[j] - v) * k)).join(',')})`;
+}
+
 const TORAN = ['#ff4b4b', '#ffd23f', '#53ff8f', '#5aa9ff', '#ff5ec4', '#ffffff'];
 
 // Background themes. sky = 4 gradient stops top→horizon; wall = where the diyas stand.
@@ -36,6 +47,11 @@ export const THEMES = {
 export class Scene {
   constructor(sky, props) {
     this.sky = sky; this.sc = sky.getContext('2d');
+    // While this.ink is on, every solid shape painted on the sky canvas gets an ink outline.
+    const sc = this.sc, fill0 = sc.fill.bind(sc), rect0 = sc.fillRect.bind(sc);
+    this.rawRect = rect0; this.ink = false;
+    sc.fill = (...a) => { fill0(...a); if (this.ink && sc.globalAlpha > 0.85) { sc.save(); sc.strokeStyle = INK; sc.lineWidth = 1.6 * this.u; sc.lineJoin = 'round'; sc.stroke(); sc.restore(); } };
+    sc.fillRect = (x, y, w, h) => { rect0(x, y, w, h); if (this.ink && w > 6 * this.u && h > 6 * this.u && sc.globalAlpha > 0.85) { sc.save(); sc.strokeStyle = INK; sc.lineWidth = 1.6 * this.u; sc.strokeRect(x, y, w, h); sc.restore(); } };
     this.props = props; this.pc = props.getContext('2d');
     this.diyas = []; this.bulbs = []; this.debris = []; this.smoke = []; this.rings = []; this.scorch = []; this.lights = [];
     this.wind = 0; this.theme = 'green'; this.fires = []; this.kandils = []; this.flakes = []; this.beams = []; this.turbines = []; this.flies = [];
@@ -73,16 +89,23 @@ export class Scene {
     const c = this.sc, w = this.w, h = this.h, u = this.u, H = this.horizon, r = rng(20261108);
     const T = THEMES[this.theme] || THEMES.city;
     c.clearRect(0, 0, w, h);
-    const g = c.createLinearGradient(0, 0, 0, H);
-    T.sky.forEach((col, i) => g.addColorStop([0, 0.55, 0.86, 1][i], col));
-    c.fillStyle = g; c.fillRect(0, 0, w, H + 2);
+    // posterised sky: flat bands like a comic panel
+    const stops = T.sky.map((col, i) => [[0, 0.55, 0.86, 1][i], col]), bands = 8;
+    for (let k = 0; k < bands; k++) {
+      const y0 = H * Math.pow(k / bands, 0.8), y1 = H * Math.pow((k + 1) / bands, 0.8) + 1;
+      c.fillStyle = lerpStops(stops, (k + 0.5) / bands); c.fillRect(0, y0, w, y1 - y0 + 1);
+    }
     if (T.milky) this.milkyWay(c, r);
     if (T.aurora) this.aurora(c, r);
     // stars (no moon: Diwali falls on the new-moon night)
     for (let i = 0, n = Math.round(((w * H) / 2600) * T.stars); i < n; i++) {
       const x = r() * w, y = r() * H * 0.88, b = r();
       c.globalAlpha = 0.25 + b * 0.6; c.fillStyle = b > 0.93 ? '#ffe9c8' : '#dfe6ff';
-      c.fillRect(x, y, b > 0.85 ? 1.6 : 1, b > 0.85 ? 1.6 : 1);
+      if (b > 0.94) { // comic sparkle star
+        const s = (2.2 + r() * 1.6) * u; c.globalAlpha = 0.95; c.beginPath();
+        for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2, rr = k % 2 ? s * 0.28 : s; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+        c.fill();
+      } else c.fillRect(x, y, b > 0.85 ? 1.6 : 1, b > 0.85 ? 1.6 : 1);
     }
     c.globalAlpha = 1;
     const hz = c.createLinearGradient(0, H - 90 * u, 0, H);
@@ -90,6 +113,7 @@ export class Scene {
     c.fillStyle = hz; c.fillRect(0, H - 90 * u, w, 90 * u);
 
     this.bulbs = []; this.fires = []; this.kandils = []; this.beams = []; this.turbines = [];
+    this.ink = true;
     this.flies = T.fireflies ? Array.from({ length: 26 }, () => ({ x: r() * w, y: H + r() * (h - H) * 0.8, ph: r() * 6, vx: (r() - 0.5) * 0.3, vy: (r() - 0.5) * 0.2 })) : [];
     this.flakes = T.weather ? Array.from({ length: T.weather === 'snow' ? 140 : 50 }, () => ({ x: r() * w, y: T.weather === 'snow' ? r() * h : H + r() * (h - H), s: 0.6 + r() * 1.6, ph: r() * 6 })) : [];
     if (this.theme === 'village') this.torans(r, this.village(c, r, H), 0.45);
@@ -113,6 +137,7 @@ export class Scene {
     c.fillStyle = wall; c.fillRect(0, H, w, this.wallH);
     c.fillStyle = 'rgba(255,190,120,0.18)'; c.fillRect(0, H, w, 1.5);
     this.wallDetail(c, r, T.wallStyle);
+    this.ink = false;
     // floor
     const fl = c.createLinearGradient(0, this.floorTop, 0, h);
     fl.addColorStop(0, T.floor[0]); fl.addColorStop(1, T.floor[1]);
@@ -604,6 +629,8 @@ export class Scene {
         x += bw; continue;
       }
       c.fillRect(x, H - bh, bw, bh + 1);
+      // cel shading: the side away from the light is a flat darker tone
+      c.save(); c.fillStyle = 'rgba(0,0,0,0.32)'; this.rawRect(x + bw * 0.68, H - bh + 1, bw * 0.32 - 1, bh); c.restore();
       if (near && r() < 0.5) { // rooftop water tank
         const tw = 12 * u, tx = x + r() * (bw - tw);
         c.fillRect(tx, H - bh - 10 * u, tw, 10 * u); c.fillRect(tx - 1.5 * u, H - bh - 10.8 * u, tw + 3 * u, 1.6 * u);
@@ -646,8 +673,8 @@ export class Scene {
     const base = g.createRadialGradient(0, 0, 0, 0, 0, R * 1.08);
     base.addColorStop(0, '#3b1650'); base.addColorStop(0.8, '#2a0f3a'); base.addColorStop(1, 'rgba(42,15,58,0)');
     g.fillStyle = base; g.beginPath(); g.arc(0, 0, R * 1.08, 0, Math.PI * 2); g.fill();
-    petals(16, R * 0.66, R * 1.02, R * 0.13, '#ff2e7e', '#ff8ab8', 0, 'rgba(255,240,250,0.85)');
-    petals(16, R * 0.7, R * 0.92, R * 0.06, '#ffb300', '#ffe680', Math.PI / 16);
+    petals(16, R * 0.66, R * 1.02, R * 0.13, '#ff2e7e', '#ff6fa6', 0, INK);
+    petals(16, R * 0.7, R * 0.92, R * 0.06, '#ffb300', '#ffd84d', Math.PI / 16, INK);
     dots(32, R * 1.1, R * 0.022, '#fff4dc');
     dots(16, R * 1.04, R * 0.03, '#ffd23f');
     ring(R * 0.64, R * 0.025, '#fff4dc');
@@ -655,19 +682,21 @@ export class Scene {
     for (const rot of [0, Math.PI / 4]) {
       g.save(); g.rotate(rot);
       g.fillStyle = rot ? '#14c3a6' : '#0e9c86'; g.fillRect(-R * 0.42, -R * 0.42, R * 0.84, R * 0.84);
-      g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = R * 0.012; g.strokeRect(-R * 0.42, -R * 0.42, R * 0.84, R * 0.84);
+      g.strokeStyle = INK; g.lineWidth = R * 0.018; g.strokeRect(-R * 0.42, -R * 0.42, R * 0.84, R * 0.84);
       g.restore();
     }
-    petals(8, R * 0.1, R * 0.4, R * 0.1, '#5b5bff', '#b28dff', 0, 'rgba(255,255,255,0.7)');
-    petals(8, R * 0.12, R * 0.3, R * 0.07, '#ff7a1a', '#ffd166', Math.PI / 8);
+    petals(8, R * 0.1, R * 0.4, R * 0.1, '#5b5bff', '#8f7dff', 0, INK);
+    petals(8, R * 0.12, R * 0.3, R * 0.07, '#ff7a1a', '#ffb347', Math.PI / 8, INK);
     const mid = g.createRadialGradient(0, 0, 0, 0, 0, R * 0.14); mid.addColorStop(0, '#fff7d6'); mid.addColorStop(1, '#ff9a1a');
     g.fillStyle = mid; g.beginPath(); g.arc(0, 0, R * 0.14, 0, Math.PI * 2); g.fill();
     dots(8, R * 0.2, R * 0.018, '#ffffff');
     // powder grain
     const rr = rng(77);
     for (let i = 0; i < 1400; i++) { const a = rr() * Math.PI * 2, d = Math.sqrt(rr()) * R * 1.05; g.fillStyle = rr() < 0.5 ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.14)'; g.fillRect(Math.cos(a) * d, Math.sin(a) * d, R * 0.01, R * 0.01); }
-    c.save(); c.globalAlpha = 0.85;
+    c.save(); c.globalAlpha = 0.9;
     c.drawImage(off, cx - R * 1.2, cy - R * 1.2 * 0.38, R * 2.4, R * 2.4 * 0.38);
+    c.globalAlpha = 0.8; c.strokeStyle = INK; c.lineWidth = 1.6 * this.u;
+    c.beginPath(); c.ellipse(cx, cy, R * 1.06, R * 1.06 * 0.38, 0, 0, Math.PI * 2); c.stroke();
     c.restore();
   }
 
@@ -729,19 +758,21 @@ export class Scene {
       g = c.createRadialGradient(0, 0, 0, 0, 0, 26 * u); g.addColorStop(0, 'rgba(255,170,70,0.5)'); g.addColorStop(1, 'rgba(255,170,70,0)');
       c.fillStyle = g; c.beginPath(); c.arc(0, 0, 26 * u, 0, Math.PI * 2); c.fill(); c.restore();
     }
-    // bowl
-    let g = c.createLinearGradient(x, y - 4 * u, x, y + 4 * u);
-    g.addColorStop(0, '#c4602e'); g.addColorStop(1, '#6e2a12');
-    c.fillStyle = g;
-    c.beginPath(); c.moveTo(x - 10 * u, y - 3.5 * u); c.bezierCurveTo(x - 8 * u, y + 4.5 * u, x + 8 * u, y + 4.5 * u, x + 10 * u, y - 3.5 * u); c.closePath(); c.fill();
+    // bowl: flat clay colour, a hard shadow on the lower right, ink outline
+    const bowl = () => { c.beginPath(); c.moveTo(x - 10 * u, y - 3.5 * u); c.bezierCurveTo(x - 8 * u, y + 4.5 * u, x + 8 * u, y + 4.5 * u, x + 10 * u, y - 3.5 * u); c.closePath(); };
+    c.fillStyle = '#d0682f'; bowl(); c.fill();
+    c.save(); bowl(); c.clip(); c.fillStyle = '#8a3614';
+    c.beginPath(); c.moveTo(x - 2 * u, y + 6 * u); c.quadraticCurveTo(x + 6 * u, y + 1 * u, x + 11 * u, y - 3 * u); c.lineTo(x + 11 * u, y + 6 * u); c.fill(); c.restore();
+    c.strokeStyle = INK; c.lineWidth = 1.1 * u; bowl(); c.stroke();
+    let g;
     // painted band and dots
     c.strokeStyle = '#ffcf4a'; c.lineWidth = 0.9 * u;
     c.beginPath(); c.moveTo(x - 8.4 * u, y - 0.6 * u); c.quadraticCurveTo(x, y + 2.6 * u, x + 8.4 * u, y - 0.6 * u); c.stroke();
     c.fillStyle = '#fff3d6';
     for (let i = -2; i <= 2; i++) { c.beginPath(); c.arc(x + i * 3.2 * u, y + 1.6 * u - Math.abs(i) * 0.7 * u, 0.55 * u, 0, Math.PI * 2); c.fill(); }
     // rim with a pinched spout at the front
-    c.fillStyle = '#e07a40';
-    c.beginPath(); c.ellipse(x, y - 3.5 * u, 10 * u, 2.6 * u, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#ec8a4c';
+    c.beginPath(); c.ellipse(x, y - 3.5 * u, 10 * u, 2.6 * u, 0, 0, Math.PI * 2); c.fill(); c.stroke();
     c.beginPath(); c.moveTo(x - 2.4 * u, y - 2.2 * u); c.quadraticCurveTo(x, y + 0.4 * u, x + 2.4 * u, y - 2.2 * u); c.fill();
     // oil pool
     g = c.createLinearGradient(x - 7 * u, 0, x + 7 * u, 0);
@@ -759,10 +790,11 @@ export class Scene {
         c.bezierCurveTo(fx - wd * 1.3, base - hgt * 0.45, fx + lean * 0.4 - wd * 0.3, base - hgt * 0.8, fx + lean, base - hgt);
         c.bezierCurveTo(fx + lean * 0.4 + wd * 0.3, base - hgt * 0.8, fx + wd * 1.3, base - hgt * 0.45, fx + wd, base); c.closePath(); c.fill();
       };
-      c.save(); c.globalCompositeOperation = 'lighter';
-      flame(3.2 * u, fh, 'rgba(255,110,30,0.55)');
-      flame(2.3 * u, fh * 0.82, 'rgba(255,200,70,0.9)');
-      flame(1.3 * u, fh * 0.55, 'rgba(255,252,235,1)');
+      c.save();
+      flame(3.2 * u, fh, '#ff7a1a');
+      c.strokeStyle = INK; c.lineWidth = 0.9 * u; c.stroke();
+      flame(2.3 * u, fh * 0.8, '#ffc94a');
+      flame(1.2 * u, fh * 0.5, '#fffbe8');
       c.fillStyle = 'rgba(90,140,255,0.55)'; c.beginPath(); c.ellipse(fx, base - 0.5 * u, 1.4 * u, 0.9 * u, 0, 0, Math.PI * 2); c.fill();
       c.restore();
     } else if (d.out && now - d.out < 2200) {

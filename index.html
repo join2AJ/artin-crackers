@@ -103,6 +103,7 @@
   </div>
   <div class="hint" id="hint">Tap the terrace to light the Anar</div>
 
+  <div class="variant-bar" id="variantBar" hidden aria-label="Cracker variants"></div>
   <div class="theme-bar" id="themeBar" hidden>
     <div class="themes strip" id="themeStrip"></div>
     <button class="icon-btn sm cut" id="themeBarClose" aria-label="Close backgrounds"><svg><use href="#i-close"/></svg></button>
@@ -191,10 +192,12 @@
     <div class="sheet cut" role="dialog" aria-labelledby="cardTitle">
       <div class="sheet-head"><h3 id="cardTitle">Greeting card</h3><button class="icon-btn sm cut" data-close aria-label="Close"><svg><use href="#i-close"/></svg></button></div>
       <div class="card-styles" id="cardStyles"></div>
+      <div class="card-styles msgs" id="cardMsgs"></div>
       <canvas class="card-preview" id="cardCanvas" width="1080" height="1350"></canvas>
+      <label class="row card-name"><span>To</span><input type="text" id="cardTo" maxlength="28" placeholder="Their name (optional)" autocomplete="off" /></label>
       <label class="row card-name"><span>From</span><input type="text" id="cardName" maxlength="28" placeholder="Your name (optional)" autocomplete="off" /></label>
       <button class="btn-primary cut" id="btnCardShare"><svg><use href="#i-card"/></svg> <span>Share card</span></button>
-      <p class="note">The card is made on your phone from the sky you just lit. Your name is only drawn on the image and isn't stored or sent anywhere.</p>
+      <p class="note">The card is made on your phone from the sky you just lit. Names are only drawn on the image and aren't stored or sent anywhere.</p>
     </div>
   </div>
 

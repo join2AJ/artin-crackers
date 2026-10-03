@@ -9,6 +9,29 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-03 · Play build 6
+### Added
+- **Cracker variants.** Pick a variant from the chip bar above the tray. Each variant has its own sound and is remembered:
+  - Anar: Gold, Silver, Colour, Giant (a taller fountain that lasts longer).
+  - Chakri: Gold, Green, Multicolour, Whistling.
+  - Rocket: Surprise, Whistling, Colour burst, Golden willow, Crackling, Ring.
+  - Ladi: 100-wala, 50-wala, 200-wala.
+  - Sutli Bomb: Classic, Double bang, Long fuse.
+  - Phuljhadi: Gold, Electric (silver-white), Long.
+  - Bijli: Single, Bunch of 5.
+  - Pencil: Red, Green, Pink, Blue.
+  - Sky Shot: 12-shot, 25-shot, Golden.
+- **Greeting cards enhanced.**
+  - Two new styles: **Comic** (an ink-bordered panel, halftone dots, a jagged starburst title and a speech bubble) and **Lotus** (a gold line-art lotus in a dotted mandala frame). Seven styles in all.
+  - **Message presets:** Happy Diwali, Green Diwali, Lakshmi Puja, New Year (Saal Mubarak) and Dhanteras, each with Hindi and English lines.
+  - A **To** field ("Dear …") alongside From.
+### Changed
+- **Comic, cel-shaded art style**, after a clean vector comic reference: bold ink outlines and flat, hard-edged shading.
+  - **Scenery:** a posterised sky in flat bands, sparkle-shaped stars, ink outlines on every building, hill, tree, tent and wall, and a flat shadow side on each building.
+  - **Diyas, rangoli and crackers:** cel-shaded diyas with flat layered flames, an ink-outlined rangoli, and crackers with hard shadow bands and ink outlines.
+  - **Icons and scale:** cracker icons in the tray and box get an ink outline, and crackers are drawn 30% larger.
+- Service-worker cache bumped to `patakha-v6`.
+
 ## [0.5.0] — 2026-10-03 · Play build 5 · `9466c21`
 ### Added
 - **Green City background**, now the default for everyone: a deep teal-green night with a soft aurora glow, wind turbines turning on the hills (with blinking red tip lights), rooftop gardens and solar panels on the buildings, tulsi and fern planters along the wall, and fireflies drifting over the terrace. Eleven backgrounds in all.

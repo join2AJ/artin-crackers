@@ -47,14 +47,23 @@ function aerial(S, at, p, { far = false } = {}) {
 export const CRACKERS = [
   {
     id: 'anar', name: 'Anar', hi: 'अनार', blurb: 'Flower-pot fountain of golden sparks', kind: 'anar', feel: 0.45, free: true,
-    plan(r) { return anarPlan(r); },
+    variants: [{ id: 'gold', name: 'Gold', sw: '#ffcf6e' }, { id: 'silver', name: 'Silver', sw: '#e6efff' }, { id: 'colour', name: 'Colour', sw: '#53ff8f' }, { id: 'giant', name: 'Giant', sw: '#ff9a3c' }],
+    plan(r, v = 'gold') {
+      const p = anarPlan(r, v === 'giant');
+      if (v === 'silver') Object.assign(p, { colours: ['#ffffff', '#e6efff', '#cfe0ff'], bodyCols: ['#4a6fa5', '#9cc3ff', '#253e66'] });
+      if (v === 'colour') Object.assign(p, { colours: ['#53ff8f', '#ff4b4b', '#ffd27a'], bodyCols: ['#1fae6a', '#7dffb4', '#0e5a36'] });
+      if (v === 'giant') Object.assign(p, { big: true, bodyCols: ['#d4a020', '#ffe58a', '#7a5a10'] });
+      return p;
+    },
     sound(S, p) { anarSound(S, p); },
   },
   {
     id: 'chakri', name: 'Chakri', hi: 'चकरी', blurb: 'Ground spinner that whirls a ring of fire', kind: 'chakri', feel: 0.45, free: true,
-    plan(r) {
+    variants: [{ id: 'gold', name: 'Gold', sw: '#ffd27a' }, { id: 'green', name: 'Green', sw: '#7dff8a' }, { id: 'multi', name: 'Multicolour', sw: '#5aa9ff' }, { id: 'whistle', name: 'Whistling', sw: '#ffffff' }],
+    plan(r, v = 'gold') {
       const fuse = r.range(0.8, 1.2), burn = r.range(5.5, 7);
-      return { fuse, burn, end: fuse + burn, curve: burnCurve(r, burn, { rise: 0.9, fall: 1.1, wobble: 0.12 }), rps: r.range(7, 10), tail: 1.6 };
+      return { fuse, burn, end: fuse + burn, curve: burnCurve(r, burn, { rise: 0.9, fall: 1.1, wobble: 0.12 }), rps: r.range(7, 10), tail: 1.6,
+        colours: v === 'green' ? ['#7dff8a', '#c9ffb0', '#ffffff'] : v === 'multi' ? ['#ff4b4b', '#53ff8f', '#5aa9ff', '#ffd27a'] : null, whistle: v === 'whistle' };
     },
     sound(S, p) {
       S.fuse(0.02, p.fuse, 0.13);
@@ -71,15 +80,17 @@ export const CRACKERS = [
       o.frequency.setValueAtTime(620, t); o.frequency.linearRampToValueAtTime(980, t + p.burn * 0.4); o.frequency.linearRampToValueAtTime(760, t + p.burn);
       S.chain(o, S.filt('bandpass', 1100, 3), S.curveGain(t, p.burn, am, 0.05), S.out); o.start(t); o.stop(t + p.burn + 0.05);
       S.crackle(t, p.burn, 26, 0.18, S.out, { f: 4500, curve: (k) => sample(p.curve, 1, k) });
+      if (p.whistle) S.whistle(t + 0.2, p.burn - 0.6, 2100, 2700, 0.09);
     },
   },
   {
     id: 'rocket', name: 'Rocket', hi: 'रॉकेट', blurb: 'Whistles up from its bottle and bursts', kind: 'rocket', feel: 0.85, free: true,
-    plan(r) {
+    variants: [{ id: 'mixed', name: 'Surprise', sw: '#ffffff' }, { id: 'whistle', name: 'Whistling', sw: '#9fd0ff' }, { id: 'peony', name: 'Colour burst', sw: '#ff4b4b' }, { id: 'willow', name: 'Golden willow', sw: '#ffcf6e' }, { id: 'crackle', name: 'Crackling', sw: '#ffe9b0' }, { id: 'ring', name: 'Ring', sw: '#c77dff' }],
+    plan(r, v = 'mixed') {
       const fuse = r.range(0.7, 1.1), flight = r.range(1.05, 1.4);
-      const type = r.pick(BURSTS), colour = type === 'willow' || type === 'crackle' ? 'gold' : r.pick(COLOURS);
-      return { fuse, launch: fuse, burst: fuse + flight, type, colour, colour2: r() < 0.35 ? r.pick(COLOURS) : null,
-        whistle: r() < 0.65, height: r.range(0.55, 0.95), drift: r.range(-0.12, 0.12), size: r.range(0.55, 0.7), end: fuse + flight + 2.4, tail: 1.8 };
+      const type = ['peony', 'willow', 'crackle', 'ring'].includes(v) ? v : r.pick(BURSTS), colour = type === 'willow' || type === 'crackle' ? 'gold' : r.pick(COLOURS);
+      return { fuse, launch: fuse, burst: fuse + flight, type, colour, colour2: r() < 0.35 || v === 'peony' ? r.pick(COLOURS) : null,
+        whistle: v === 'whistle' || (v === 'mixed' && r() < 0.65), height: r.range(0.55, 0.95), drift: r.range(-0.12, 0.12), size: r.range(0.55, 0.7), end: fuse + flight + 2.4, tail: 1.8 };
     },
     sound(S, p) {
       S.fuse(0.02, p.fuse, 0.12);
@@ -92,18 +103,28 @@ export const CRACKERS = [
     },
   },
   {
-    id: 'ladi', name: 'Ladi', hi: 'लड़ी', blurb: '100-wala string — rat-a-tat-tat', kind: 'ladi', feel: 0.9, free: true,
-    plan(r) { return ladiPlan(r, 100, 0.034, 0.11); },
+    id: 'ladi', name: 'Ladi', hi: 'लड़ी', blurb: 'String of crackers: rat-a-tat-tat', kind: 'ladi', feel: 0.9, free: true,
+    variants: [{ id: '100', name: '100-wala', sw: '#d9303a' }, { id: '50', name: '50-wala', sw: '#ff7a6b' }, { id: '200', name: '200-wala', sw: '#8e1d26' }],
+    plan(r, v = '100') { const n = +v || 100; return ladiPlan(r, n, n > 150 ? 0.028 : 0.034, n > 150 ? 0.08 : 0.11); },
     sound(S, p) { ladiSound(S, p); },
   },
   {
     id: 'bomb', name: 'Sutli Bomb', hi: 'सुतली बम', blurb: 'Twine-wrapped thunder. Cover your ears!', kind: 'bomb', feel: 1.3, free: true,
-    plan(r) { const fuse = r.range(2.2, 3); return { fuse, bang: fuse, size: r.range(0.95, 1.1), end: fuse + 0.4, tail: 3.2, colour: 'jute' }; },
-    sound(S, p) { S.fuse(0.02, p.fuse, 0.16); S.bang(p.bang, p.size); },
+    variants: [{ id: 'classic', name: 'Classic', sw: '#c48a50' }, { id: 'double', name: 'Double bang', sw: '#ff9a3c' }, { id: 'delay', name: 'Long fuse', sw: '#c49a6c' }],
+    plan(r, v = 'classic') {
+      const fuse = v === 'delay' ? r.range(5, 6.5) : r.range(2.2, 3), extra = v === 'double' ? [fuse + r.range(0.3, 0.5)] : [];
+      return { fuse, bang: fuse, extra, size: r.range(0.95, 1.1), end: fuse + 0.4 + (extra.length ? 0.5 : 0), tail: 3.2, colour: 'jute' };
+    },
+    sound(S, p) { S.fuse(0.02, p.fuse, 0.16); S.bang(p.bang, p.size); for (const t of p.extra || []) S.bang(t, p.size * 0.9); },
   },
   {
     id: 'phuljhadi', name: 'Phuljhadi', hi: 'फुलझड़ी', blurb: 'Sparkler — hold and draw with light', kind: 'phuljhadi', feel: 0.12, free: true,
-    plan(r) { const burn = r.range(11, 13); return { fuse: 0.25, burn, end: 0.25 + burn, tail: 0.6, curve: burnCurve(r, burn, { rise: 0.4, fall: 0.8, wobble: 0.1, swell: false }) }; },
+    variants: [{ id: 'gold', name: 'Gold', sw: '#ffd27a' }, { id: 'electric', name: 'Electric', sw: '#e6efff' }, { id: 'long', name: 'Long', sw: '#ffb347' }],
+    plan(r, v = 'gold') {
+      const burn = v === 'long' ? r.range(19, 22) : r.range(11, 13);
+      return { fuse: 0.25, burn, end: 0.25 + burn, tail: 0.6, curve: burnCurve(r, burn, { rise: 0.4, fall: 0.8, wobble: 0.1, swell: false }),
+        colours: v === 'electric' ? ['#ffffff', '#dbe8ff', '#b8d4ff'] : null };
+    },
     sound(S, p) {
       const t = p.fuse;
       S.chain(S.noise(0.02, 0.4), S.filt('bandpass', 3000, 0.7), S.env(0.02, 0.25, 0.05, 0.3), S.out);
@@ -114,8 +135,13 @@ export const CRACKERS = [
   },
   {
     id: 'bijli', name: 'Bijli', hi: 'बिजली', blurb: 'Little red cracker with a sharp crack', kind: 'bomb', feel: 0.9, free: true,
-    plan(r) { const fuse = r.range(1.2, 1.7); return { fuse, bang: fuse, size: r.range(0.5, 0.6), end: fuse + 0.3, tail: 2.2, colour: 'red', tube: true }; },
-    sound(S, p) { S.fuse(0.02, p.fuse, 0.12); S.bang(p.bang, p.size); },
+    variants: [{ id: 'single', name: 'Single', sw: '#d9303a' }, { id: 'bunch', name: 'Bunch of 5', sw: '#ffcf4a' }],
+    plan(r, v = 'single') {
+      const fuse = r.range(1.2, 1.7), extra = [];
+      if (v === 'bunch') { let t = fuse; for (let i = 0; i < 4; i++) { t += r.range(0.15, 0.4); extra.push(t); } }
+      return { fuse, bang: fuse, extra, size: r.range(0.5, 0.6), end: (extra.at(-1) || fuse) + 0.3, tail: 2.2, colour: 'red', tube: true };
+    },
+    sound(S, p) { S.fuse(0.02, p.fuse, 0.12); S.bang(p.bang, p.size); for (const t of p.extra || []) S.bang(t, p.size * (0.85 + Math.random() * 0.2)); },
   },
   {
     id: 'saanp', name: 'Saanp Goli', hi: 'साँप गोली', blurb: 'Snake tablet: watch the ash snake grow', kind: 'snake', feel: 0, free: true,
@@ -131,9 +157,10 @@ export const CRACKERS = [
   },
   {
     id: 'pencil', name: 'Pencil', hi: 'पेंसिल', blurb: 'Colour pencil that burns with a red, green or pink flame', kind: 'phuljhadi', feel: 0.12, free: true,
-    plan(r) {
+    variants: [{ id: 'red', name: 'Red', sw: '#ff3b3b' }, { id: 'green', name: 'Green', sw: '#3bff6a' }, { id: 'pink', name: 'Pink', sw: '#ff4fd8' }, { id: 'blue', name: 'Blue', sw: '#4f8cff' }],
+    plan(r, v = 'red') {
       const burn = r.range(9, 11);
-      return { fuse: 0.3, burn, end: 0.3 + burn, tail: 0.6, colour: r.pick(['#ff3b3b', '#3bff6a', '#ff4fd8']), pencil: true, curve: burnCurve(r, burn, { rise: 0.3, fall: 0.6, wobble: 0.08, swell: false }) };
+      return { fuse: 0.3, burn, end: 0.3 + burn, tail: 0.6, colour: { red: '#ff3b3b', green: '#3bff6a', pink: '#ff4fd8', blue: '#4f8cff' }[v] || '#ff3b3b', pencil: true, curve: burnCurve(r, burn, { rise: 0.3, fall: 0.6, wobble: 0.08, swell: false }) };
     },
     sound(S, p) {
       S.chain(S.noise(0.02, 0.35), S.filt('bandpass', 2400, 0.7), S.env(0.02, 0.25, 0.04, 0.3), S.out);
@@ -155,16 +182,17 @@ export const CRACKERS = [
   },
   {
     id: 'skyshot', name: 'Sky Shot', hi: 'स्काई शॉट', blurb: '12-shot colour cake for the finale', kind: 'skyshot', feel: 0.85, free: false,
-    plan(r) {
-      const fuse = r.range(1.1, 1.5), shots = [];
+    variants: [{ id: '12', name: '12-shot', sw: '#7b46b3' }, { id: '25', name: '25-shot', sw: '#ff5ec4' }, { id: 'gold', name: 'Golden', sw: '#ffcf6e' }],
+    plan(r, v = '12') {
+      const fuse = r.range(1.1, 1.5), shots = [], n = v === '25' ? 25 : 12;
       let t = fuse;
-      for (let i = 0; i < 12; i++) {
-        const type = i === 11 ? 'crackle' : r.pick(BURSTS), flight = r.range(0.75, 0.95);
-        shots.push({ launch: t, burst: t + flight, type, colour: type === 'willow' || type === 'crackle' ? 'gold' : COLOURS[i % COLOURS.length],
+      for (let i = 0; i < n; i++) {
+        const type = i === n - 1 ? 'crackle' : v === 'gold' ? r.pick(['willow', 'crackle', 'willow']) : r.pick(BURSTS), flight = r.range(0.75, 0.95);
+        shots.push({ launch: t, burst: t + flight, type, colour: type === 'willow' || type === 'crackle' || v === 'gold' ? 'gold' : COLOURS[i % COLOURS.length],
           height: r.range(0.5, 0.9), drift: r.range(-0.18, 0.18), size: r.range(0.45, 0.6) });
-        t += i > 8 ? r.range(0.25, 0.35) : r.range(0.5, 0.75);
+        t += i > n - 4 ? r.range(0.25, 0.35) : r.range(0.45, 0.7);
       }
-      return { fuse, shots, end: shots[11].burst + 2.4, tail: 2 };
+      return { fuse, shots, end: shots[n - 1].burst + 2.4, tail: 2 };
     },
     sound(S, p) {
       S.fuse(0.02, p.fuse, 0.13);
@@ -194,8 +222,8 @@ export const DISTANT = {
   sound(S, p) { aerial(S, 0.05, p, { far: true }); },
 };
 
-function anarPlan(r) {
-  const fuse = r.range(1, 1.5), burn = r.range(6.5, 8.5);
+function anarPlan(r, giant = false) {
+  const fuse = r.range(1, 1.5), burn = giant ? r.range(10, 12) : r.range(6.5, 8.5);
   return { fuse, burn, end: fuse + burn, curve: burnCurve(r, burn, { rise: 0.6, fall: 1.4, wobble: 0.22 }), tail: 2 };
 }
 function anarSound(S, p) {

@@ -6,23 +6,25 @@
 
 import { PALETTES, sample } from './crackers.js';
 import { rng } from './synth.js';
+import { INK } from './scene.js';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pickW = (list) => { let r = Math.random(); for (const [v, w] of list) { if ((r -= w) <= 0) return v; } return list[0][0]; };
 
 
 /** Soft contact shadow under a body. */
-function shadow(c, x, y, rx, ry, a = 0.45) {
-  const g = c.createRadialGradient(x, y, 0, x, y, rx);
-  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)');
-  c.save(); c.translate(x, y); c.scale(1, ry / rx); c.translate(-x, -y); c.fillStyle = g; c.beginPath(); c.arc(x, y, rx, 0, Math.PI * 2); c.fill(); c.restore();
+function shadow(c, x, y, rx, ry, a = 0.4) {
+  c.save(); c.fillStyle = `rgba(0,0,0,${a})`; c.beginPath(); c.ellipse(x, y, rx * 0.8, ry * 0.8, 0, 0, Math.PI * 2); c.fill(); c.restore();
 }
-/** A cylinder-style horizontal gradient: dark edges, colour, a bright highlight. */
+/** Comic cel shading across a cylinder: a flat colour, a hard shadow band on the right, a hard highlight strip. */
 function tube(c, x0, x1, cols) {
   const g = c.createLinearGradient(x0, 0, x1, 0);
-  g.addColorStop(0, cols[2]); g.addColorStop(0.28, cols[0]); g.addColorStop(0.42, cols[1]); g.addColorStop(0.6, cols[0]); g.addColorStop(1, cols[2]);
+  g.addColorStop(0, cols[0]); g.addColorStop(0.2, cols[0]); g.addColorStop(0.2, cols[1]); g.addColorStop(0.32, cols[1]);
+  g.addColorStop(0.32, cols[0]); g.addColorStop(0.66, cols[0]); g.addColorStop(0.66, cols[2]); g.addColorStop(1, cols[2]);
   return g;
 }
+/** Ink outline of the current path. */
+function ink(c, u, w = 1.2) { c.strokeStyle = INK; c.lineWidth = w * u; c.lineJoin = 'round'; c.stroke(); }
 
 class Visual {
   constructor(st, plan, x, y, when) {
@@ -34,7 +36,7 @@ class Visual {
   get t() { return this.lit === false ? 0 : (performance.now() - this.when) / 1000; }
   /** Where its fuse is: touch a lighter here to light it. */
   fusePoint() { return { x: this.x, y: this.y - 10 * this.u }; }
-  get u() { return this.st.scene.u * this.k; }
+  get u() { return this.st.scene.u * this.k * 1.3; } // crackers drawn 30% larger than the scenery unit
   /** Number of particles to emit this frame for a rate per second (keeps fractions). */
   count(rate, dt) { this.acc += rate * dt; const n = Math.floor(this.acc); this.acc -= n; return n; }
   fuseSpark(x, y, dt) {
@@ -79,7 +81,7 @@ class Anar extends Visual {
     if (t < p.fuse) { this.fuseSpark(this.x, tipY - 3 * u, dt); return; }
     const k = sample(p.curve, p.burn, t - p.fuse);
     if (k > 0.01) {
-      const H = Math.min(tipY * 0.78, 340 * u) * (0.5 + 0.5 * k), g = 560 * u, v0 = Math.sqrt(2 * g * H);
+      const H = Math.min(tipY * 0.78, 340 * u) * (0.5 + 0.5 * k) * (p.big ? 1.35 : 1), g = 560 * u, v0 = Math.sqrt(2 * g * H);
       for (let i = this.count(430 * k, dt); i > 0; i--) {
         const a = -Math.PI / 2 + (Math.random() + Math.random() - 1) * 0.3, s = v0 * rnd(0.5, 1);
         st.sparks.add({ x: this.x + rnd(-1.5, 1.5) * u, y: tipY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(0.7, 1.35),
@@ -95,14 +97,14 @@ class Anar extends Visual {
     const u = this.u, x = this.x, y = this.y, burnt = this.t > this.p.end;
     c.save(); c.globalAlpha = Math.min(1, (this.p.end + 2 - this.t) / 0.8);
     shadow(c, x, y + 1 * u, 16 * u, 4.5 * u);
-    const cols = burnt ? ['#4a2420', '#6a3a30', '#22100c'] : this.p.colours ? ['#6d36b8', '#b98cff', '#2a1046'] : ['#d23a2e', '#ff8a5c', '#5e140f'];
+    const cols = burnt ? ['#4a2420', '#6a3a30', '#22100c'] : this.p.bodyCols || (this.p.colours ? ['#6d36b8', '#b98cff', '#2a1046'] : ['#d23a2e', '#ff8a5c', '#5e140f']);
     const top = y - 30 * u;
     // clay pot: a cone with a rounded belly
     c.fillStyle = tube(c, x - 12 * u, x + 12 * u, cols);
     c.beginPath(); c.moveTo(x - 2.6 * u, top);
     c.bezierCurveTo(x - 6 * u, top + 10 * u, x - 13 * u, y - 8 * u, x - 11 * u, y - 1 * u);
     c.quadraticCurveTo(x, y + 2.4 * u, x + 11 * u, y - 1 * u);
-    c.bezierCurveTo(x + 13 * u, y - 8 * u, x + 6 * u, top + 10 * u, x + 2.6 * u, top); c.closePath(); c.fill();
+    c.bezierCurveTo(x + 13 * u, y - 8 * u, x + 6 * u, top + 10 * u, x + 2.6 * u, top); c.closePath(); c.fill(); ink(c, u, 1.4);
     if (!burnt) {
       // painted bands: gold zigzag, a row of dots, a green ring
       c.strokeStyle = '#ffd34d'; c.lineWidth = 1.1 * u; c.beginPath();
@@ -113,7 +115,7 @@ class Anar extends Visual {
       c.beginPath(); c.moveTo(x - 5.4 * u, y - 19 * u); c.quadraticCurveTo(x, y - 17.6 * u, x + 5.4 * u, y - 19 * u); c.stroke();
     }
     // gloss
-    c.fillStyle = 'rgba(255,255,255,0.18)';
+    c.fillStyle = 'rgba(255,255,255,0.32)';
     c.beginPath(); c.moveTo(x - 1.6 * u, top + 2 * u); c.quadraticCurveTo(x - 7 * u, y - 10 * u, x - 6.4 * u, y - 3 * u); c.lineTo(x - 4.6 * u, y - 3 * u); c.quadraticCurveTo(x - 5 * u, y - 10 * u, x - 0.6 * u, top + 2 * u); c.fill();
     // clay cap with the fuse hole
     c.fillStyle = '#7a4a2a'; c.beginPath(); c.ellipse(x, top, 3 * u, 1.2 * u, 0, 0, Math.PI * 2); c.fill();
@@ -139,7 +141,7 @@ class Chakri extends Visual {
       for (let i = this.count(560 * k, dt); i > 0; i--) {
         const th = this.th + (i % 2 ? Math.PI : 0) + rnd(-0.15, 0.15), s = rnd(140, 330) * u * (0.6 + 0.4 * k);
         st.sparks.add({ x: this.x + Math.cos(th) * R, y: this.y + Math.sin(th) * R * 0.42, vx: -Math.sin(th) * s, vy: Math.cos(th) * s * 0.42 - rnd(0, 110) * u,
-          life: rnd(0.3, 0.75), colour: pickW([['#ffd27a', 0.55], ['#fff4d6', 0.3], ['#ff8a5c', 0.15]]), size: 1.5 * u, drag: 1.4, grav: 520 * u,
+          life: rnd(0.3, 0.75), colour: p.colours && Math.random() < 0.75 ? p.colours[Math.floor(Math.random() * p.colours.length)] : pickW([['#ffd27a', 0.55], ['#fff4d6', 0.3], ['#ff8a5c', 0.15]]), size: 1.5 * u, drag: 1.4, grav: 520 * u,
           floor: this.y + rnd(-3, 9) * u, bounce: 0.35, flicker: Math.random() < 0.1 });
       }
       st.scene.lights.push({ x: this.x, y: this.y, r: (50 + 120 * k) * u, colour: 'rgba(255,190,90,1)', a: 0.55 * k });
@@ -160,10 +162,9 @@ class Chakri extends Visual {
       c.beginPath(); c.ellipse(x, y, rr - R * 0.1, (rr - R * 0.1) * 0.42, 0, 0, Math.PI * 2); c.stroke();
     }
     c.setLineDash([]);
+    c.beginPath(); c.ellipse(x, y, R * 1.02, R * 0.43, 0, 0, Math.PI * 2); ink(c, u, 1.3);
     // gold foil hub
-    const hub = c.createRadialGradient(x - 1 * u, y - 0.6 * u, 0, x, y, 3 * u);
-    hub.addColorStop(0, '#fff3c4'); hub.addColorStop(1, '#b8860b');
-    c.fillStyle = hub; c.beginPath(); c.ellipse(x, y, 3 * u, 1.4 * u, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#e8b830'; c.beginPath(); c.ellipse(x, y, 3 * u, 1.4 * u, 0, 0, Math.PI * 2); c.fill(); ink(c, u, 0.9);
     c.fillStyle = 'rgba(255,255,255,0.22)'; c.beginPath(); c.ellipse(x - R * 0.3, y - R * 0.18, R * 0.45, R * 0.12, -0.2, 0, Math.PI * 2); c.fill();
     if (k > 0.05) {
       c.globalCompositeOperation = 'lighter';
@@ -215,17 +216,18 @@ class Rocket extends Visual {
     glass.addColorStop(0, 'rgba(20,90,60,0.85)'); glass.addColorStop(0.35, 'rgba(70,170,120,0.65)'); glass.addColorStop(1, 'rgba(15,70,45,0.9)');
     c.fillStyle = glass;
     c.beginPath(); c.moveTo(x - 6 * u, y); c.lineTo(x - 6 * u, y - 16 * u); c.quadraticCurveTo(x - 6 * u, y - 20 * u, x - 2.2 * u, y - 22 * u); c.lineTo(x - 2.2 * u, y - 28 * u);
-    c.lineTo(x + 2.2 * u, y - 28 * u); c.lineTo(x + 2.2 * u, y - 22 * u); c.quadraticCurveTo(x + 6 * u, y - 20 * u, x + 6 * u, y - 16 * u); c.lineTo(x + 6 * u, y); c.closePath(); c.fill();
+    c.lineTo(x + 2.2 * u, y - 28 * u); c.lineTo(x + 2.2 * u, y - 22 * u); c.quadraticCurveTo(x + 6 * u, y - 20 * u, x + 6 * u, y - 16 * u); c.lineTo(x + 6 * u, y); c.closePath(); c.fill(); ink(c, u, 1.2);
     c.fillStyle = '#f2e6c4'; c.fillRect(x - 6 * u, y - 11 * u, 12 * u, 5.5 * u);
     c.fillStyle = '#e8343f'; c.fillRect(x - 6 * u, y - 11 * u, 12 * u, 1.2 * u); c.fillRect(x - 6 * u, y - 6.7 * u, 12 * u, 1.2 * u);
     c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x - 4.6 * u, y - 19 * u, 1.2 * u, 7 * u); c.fillRect(x - 4.6 * u, y - 4.5 * u, 1.2 * u, 3.5 * u);
     if (this.t < this.p.launch) {
       c.strokeStyle = '#c49a6c'; c.lineWidth = 1.1 * u; c.beginPath(); c.moveTo(x, y - 8 * u); c.lineTo(x, y - 42 * u); c.stroke();
       // striped tube, foil nose cone, little fins
-      c.fillStyle = tube(c, x - 2.4 * u, x + 2.4 * u, ['#d42a36', '#ff7a7a', '#6e0f16']); c.fillRect(x - 2.4 * u, y - 48 * u, 4.8 * u, 13 * u);
+      c.fillStyle = tube(c, x - 2.4 * u, x + 2.4 * u, ['#d42a36', '#ff8a8a', '#8a1420']); c.fillRect(x - 2.4 * u, y - 48 * u, 4.8 * u, 13 * u);
+      c.beginPath(); c.rect(x - 2.4 * u, y - 48 * u, 4.8 * u, 13 * u); ink(c, u, 0.9);
       c.fillStyle = '#fff3d6'; c.fillRect(x - 2.4 * u, y - 44 * u, 4.8 * u, 1.3 * u); c.fillRect(x - 2.4 * u, y - 40 * u, 4.8 * u, 1.3 * u);
       c.fillStyle = tube(c, x - 2.4 * u, x + 2.4 * u, ['#e0b23c', '#fff1b8', '#7a5a10']);
-      c.beginPath(); c.moveTo(x - 2.4 * u, y - 48 * u); c.quadraticCurveTo(x - 1.6 * u, y - 52 * u, x, y - 54.5 * u); c.quadraticCurveTo(x + 1.6 * u, y - 52 * u, x + 2.4 * u, y - 48 * u); c.fill();
+      c.beginPath(); c.moveTo(x - 2.4 * u, y - 48 * u); c.quadraticCurveTo(x - 1.6 * u, y - 52 * u, x, y - 54.5 * u); c.quadraticCurveTo(x + 1.6 * u, y - 52 * u, x + 2.4 * u, y - 48 * u); c.fill(); ink(c, u, 0.9);
       c.fillStyle = '#1fae6a'; c.beginPath(); c.moveTo(x - 2.4 * u, y - 38 * u); c.lineTo(x - 4.6 * u, y - 35 * u); c.lineTo(x - 2.4 * u, y - 35.5 * u); c.fill();
       c.beginPath(); c.moveTo(x + 2.4 * u, y - 38 * u); c.lineTo(x + 4.6 * u, y - 35 * u); c.lineTo(x + 2.4 * u, y - 35.5 * u); c.fill();
     }
@@ -265,8 +267,17 @@ class Bomb extends Visual {
       st.scene.burn(this.x, this.y, 30 * u * s);
       this.glow = 1;
     }
+    // follow-up bangs (double bomb, bunch of bijli)
+    this.extraDone = this.extraDone || 0;
+    while (this.banged && p.extra && this.extraDone < p.extra.length && t >= p.extra[this.extraDone]) {
+      const ex = this.x + (this.extraDone % 2 ? 1 : -1) * (6 + this.extraDone * 3) * u, cy = this.y - R;
+      this.extraDone++;
+      st.flash(ex, cy, p.tube ? 0.45 : 0.9, p.tube ? 300 : 550, '#fff1d6'); st.shake(p.tube ? 0.3 : 0.8);
+      for (let i = 0; i < 50 * p.size; i++) { const a = rnd(-Math.PI, 0), v = rnd(200, 600) * u * p.size; st.sparks.add({ x: ex, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.1, 0.3), colour: Math.random() < 0.5 ? '#ffffff' : '#ffb347', size: 2 * u, drag: 3, grav: 400 * u, floor: this.y + 6 * u }); }
+      st.scene.paper(ex, cy, 14, p.tube ? ['#d9303a', '#ffcf4a'] : ['#b07a45', '#d9303a']); st.scene.puff(ex, cy, 5, p.size); this.glow = 0.8;
+    }
     if (this.glow > 0) { st.scene.lights.push({ x: this.x, y: this.y - R, r: 260 * u * p.size, colour: 'rgba(255,200,130,1)', a: this.glow }); this.glow -= dt * 3.5; }
-    if (t > p.bang + 2.5) this.done = true;
+    if (t > (p.extra?.at(-1) || p.bang) + 2.5) this.done = true;
   }
   draw(c) {
     if (this.banged) return;
@@ -274,9 +285,8 @@ class Bomb extends Visual {
     c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.ellipse(x, this.y + 1.5 * u, R * 1.1, R * 0.35, 0, 0, Math.PI * 2); c.fill();
     if (p.tube) { // bijli: a small red paper tube standing upright
       const tw = 4.5 * u, th = 15 * u, top = this.y - th;
-      const tg = c.createLinearGradient(x - tw, 0, x + tw, 0);
-      tg.addColorStop(0, '#8e1d26'); tg.addColorStop(0.45, '#e2404a'); tg.addColorStop(1, '#6e141c');
-      c.fillStyle = tg; c.fillRect(x - tw, top, tw * 2, th);
+      c.fillStyle = tube(c, x - tw, x + tw, ['#e2404a', '#ff9a9a', '#8e1d26']); c.fillRect(x - tw, top, tw * 2, th);
+      c.beginPath(); c.rect(x - tw, top, tw * 2, th); ink(c, u, 1.1);
       c.fillStyle = '#ffcf4a'; c.fillRect(x - tw, top + th * 0.35, tw * 2, 2.2 * u);
       c.strokeStyle = '#c49a6c'; c.lineWidth = 1.2 * u;
       // fuse ends where update() draws its spark
@@ -286,8 +296,10 @@ class Bomb extends Visual {
     const g = c.createRadialGradient(x - R * 0.35, y - R * 0.35, R * 0.1, x, y, R);
     if (p.colour === 'green') { g.addColorStop(0, '#5fd38a'); g.addColorStop(1, '#1d5a33'); } else { g.addColorStop(0, '#d9a066'); g.addColorStop(1, '#6e4520'); }
     shadow(c, x, this.y + 1 * u, R * 1.3, R * 0.4);
-    c.fillStyle = g; c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fill();
-    c.fillStyle = 'rgba(255,255,255,0.25)'; c.beginPath(); c.ellipse(x - R * 0.4, y - R * 0.45, R * 0.28, R * 0.16, -0.6, 0, Math.PI * 2); c.fill();
+    c.fillStyle = p.colour === 'green' ? '#3fae66' : '#c48a50'; c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fill();
+    c.save(); c.clip(); c.fillStyle = p.colour === 'green' ? '#1d6a3a' : '#7a4f22'; c.beginPath(); c.arc(x - R * 0.35, y - R * 0.35, R * 1.25, 0.15, Math.PI * 1.35, true); c.lineTo(x + R * 2, y + R * 2); c.fill(); c.restore();
+    c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); ink(c, u, 1.4);
+    c.fillStyle = 'rgba(255,255,255,0.4)'; c.beginPath(); c.ellipse(x - R * 0.4, y - R * 0.45, R * 0.28, R * 0.16, -0.6, 0, Math.PI * 2); c.fill();
     c.strokeStyle = p.colour === 'green' ? 'rgba(255,207,74,0.75)' : 'rgba(70,40,15,0.65)'; c.lineWidth = 0.9 * u;
     for (let i = -2; i <= 2; i++) {
       c.beginPath(); c.ellipse(x, y, R, R * Math.abs(i) * 0.3 + 0.5, 0, 0, Math.PI * 2); c.stroke();
@@ -297,7 +309,7 @@ class Bomb extends Visual {
     const a = -0.9;
     c.beginPath(); c.moveTo(x + R * 0.6, y - R * 0.6); c.lineTo(x + R * 0.6 + Math.cos(a) * 14 * u * f, y - R * 0.6 + Math.sin(a) * 14 * u * f); c.stroke();
   }
-  static torch(p) { return [{ t: p.bang, ms: p.big ? 420 : p.tube ? 150 : 260 }]; }
+  static torch(p) { return [p.bang, ...(p.extra || [])].map((t) => ({ t, ms: p.big ? 420 : p.tube ? 150 : 260 })); }
 }
 
 // ------------------------------------------------------------------ LADI
@@ -361,6 +373,7 @@ class Ladi extends Visual {
     for (let i = 0; i < pts.length; i++) {
       if (this.gone[i]) continue;
       const a = i % 2 ? 0.6 : -0.6, { x, y } = pts[i];
+      if (p.n <= 200) { c.strokeStyle = INK; c.lineWidth = 3.8 * u; c.beginPath(); c.moveTo(x - Math.sin(a) * tl * 0.5, y - Math.cos(a) * tl * 0.5); c.lineTo(x + Math.sin(a) * tl * 0.5, y + Math.cos(a) * tl * 0.5); c.stroke(); c.lineWidth = 2.4 * u; }
       c.strokeStyle = i % 7 === 3 ? '#2f8f4e' : '#d9303a';
       c.beginPath(); c.moveTo(x - Math.sin(a) * tl * 0.5, y - Math.cos(a) * tl * 0.5); c.lineTo(x + Math.sin(a) * tl * 0.5, y + Math.cos(a) * tl * 0.5); c.stroke();
       if (p.n <= 200) { c.strokeStyle = '#ffd34d'; c.beginPath(); c.moveTo(x - Math.sin(a) * tl * 0.08, y - Math.cos(a) * tl * 0.08); c.lineTo(x + Math.sin(a) * tl * 0.08, y + Math.cos(a) * tl * 0.08); c.stroke(); }
@@ -405,7 +418,7 @@ class Phuljhadi extends Visual {
       }
       for (let i = this.count((p.pencil ? 40 : 260) * k, dt); i > 0; i--) {
         const a = Math.random() * Math.PI * 2, s = rnd(70, 270) * u;
-        st.sparks.add({ x: tp.x, y: tp.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(0.08, 0.32), colour: Math.random() < 0.6 ? '#fff6e0' : '#ffd27a',
+        st.sparks.add({ x: tp.x, y: tp.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(0.08, 0.32), colour: p.colours ? p.colours[i % p.colours.length] : Math.random() < 0.6 ? '#fff6e0' : '#ffd27a',
           size: 1.1 * u, drag: 2.2, grav: 140 * u, split: Math.random() < 0.3 ? 3 : 0, flicker: Math.random() < 0.2 });
       }
       st.scene.lights.push({ x: tp.x, y: tp.y, r: 90 * u, colour: 'rgba(255,225,170,1)', a: 0.45 * k });
@@ -482,10 +495,11 @@ class SkyShot extends Visual {
     c.save(); c.globalAlpha = Math.min(1, (this.p.end + 0.5 - t) / 0.8);
     shadow(c, x, y + 1.5 * u, 22 * u, 5 * u);
     // printed box: front, top, side
-    const fr = c.createLinearGradient(0, y - 18 * u, 0, y); fr.addColorStop(0, '#7b3fd0'); fr.addColorStop(1, '#3a1470');
-    c.fillStyle = fr; c.fillRect(x - 15 * u, y - 18 * u, 30 * u, 18 * u);
+    c.fillStyle = '#6a32bf'; c.fillRect(x - 15 * u, y - 18 * u, 30 * u, 18 * u);
+    c.fillStyle = '#4a1e8c'; c.fillRect(x + 4 * u, y - 18 * u, 11 * u, 18 * u);
+    c.beginPath(); c.rect(x - 15 * u, y - 18 * u, 30 * u, 18 * u); ink(c, u, 1.2);
     c.fillStyle = '#2a0f55'; c.beginPath(); c.moveTo(x + 15 * u, y - 18 * u); c.lineTo(x + 19 * u, y - 22 * u); c.lineTo(x + 19 * u, y - 4 * u); c.lineTo(x + 15 * u, y); c.fill();
-    c.fillStyle = '#9a62e8'; c.beginPath(); c.moveTo(x - 15 * u, y - 18 * u); c.lineTo(x - 11 * u, y - 22 * u); c.lineTo(x + 19 * u, y - 22 * u); c.lineTo(x + 15 * u, y - 18 * u); c.fill();
+    c.fillStyle = '#9a62e8'; c.beginPath(); c.moveTo(x - 15 * u, y - 18 * u); c.lineTo(x - 11 * u, y - 22 * u); c.lineTo(x + 19 * u, y - 22 * u); c.lineTo(x + 15 * u, y - 18 * u); c.closePath(); c.fill(); ink(c, u, 1.1);
     c.fillStyle = '#ffcf4a'; c.fillRect(x - 15 * u, y - 11 * u, 30 * u, 2.2 * u); c.fillRect(x - 15 * u, y - 2.2 * u, 30 * u, 1.2 * u);
     // printed stars
     c.fillStyle = '#fff3c4';

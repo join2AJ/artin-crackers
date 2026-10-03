@@ -421,3 +421,27 @@ button.tally { border: 0; cursor: pointer; }
   .theme.thumb i { height: 34px; }
 }
 @media (max-width: 420px) { .eco small { display: none; } .eco b { font-size: 14px; } }
+
+/* comic ink outline around cracker icons */
+.cr svg.art, .bx svg.art, .man-art svg, .unlock .un-art svg { filter: drop-shadow(1px 0 0 #07120d) drop-shadow(-1px 0 0 #07120d) drop-shadow(0 1px 0 #07120d) drop-shadow(0 -1px 0 #07120d); }
+
+/* variant chips above the tray */
+.variant-bar {
+  position: fixed; z-index: 10; left: 0; right: 0; bottom: var(--tray-h); display: flex; align-items: center; gap: 6px;
+  overflow-x: auto; scrollbar-width: none; touch-action: pan-x; padding: 6px calc(10px + var(--safe-r)) 4px calc(10px + var(--safe-l));
+}
+.variant-bar::-webkit-scrollbar { display: none; }
+.variant-bar .vb-label { flex: none; font-family: var(--f-brand); font-weight: 700; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); text-shadow: 0 1px 4px #000; }
+.variant-bar button {
+  flex: none; display: flex; align-items: center; gap: 6px; border: 2px solid #07120d; border-radius: 999px; padding: 5px 11px 5px 6px;
+  background: rgba(8, 30, 22, 0.82); color: var(--text); font-family: var(--f-brand); font-weight: 600; font-size: 12px; letter-spacing: 0.04em;
+  box-shadow: 2px 2px 0 #07120d; backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+}
+.variant-bar button i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #07120d; }
+.variant-bar button[aria-pressed='true'] { background: var(--gold); color: #1a1205; transform: translateY(-1px); box-shadow: 3px 3px 0 #07120d; }
+.hint { bottom: calc(var(--tray-h) + 44px); }
+@media (max-height: 500px) { .variant-bar { padding-top: 3px; padding-bottom: 2px; } .variant-bar button { padding: 3px 9px 3px 4px; font-size: 11px; } .hint { display: none; } }
+
+.card-styles.msgs button { border-radius: 999px; clip-path: none; font-family: var(--f-ui); text-transform: none; letter-spacing: 0; font-size: 13px; }
+.card-styles.msgs button[aria-pressed='true'] { color: #1a1205; background: var(--gold); box-shadow: none; }
+.card-name + .card-name { margin-top: 2px; }

@@ -38,6 +38,8 @@ Everything to paste into Play Console. Character limits are in brackets.
 > • Premium: Rainbow Anar, 1000-wala ladi, 12-shot Sky Shot and the Atom Bomb
 >
 > ✨ FEATURES
+> • Bold comic-style art, and variants of every cracker: silver anar, whistling chakri, golden-willow rockets, double-bang bombs and more
+> • Greeting cards in 7 styles (Comic, Lotus, Rangoli, Diya…) with Diwali, Lakshmi Puja, Dhanteras and New Year messages
 > • Light it for real: set a cracker down and hold an agarbatti, candle or phuljhadi to its fuse
 > • 11 backgrounds: Green City (wind turbines, rooftop gardens, fireflies), rooftop, home, village, river ghat, palace, Himalaya snow, desert, border post, camp, open sky
 > • See how much CO₂ and smoke you saved, and how bad the air would have got

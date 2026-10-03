@@ -20,10 +20,11 @@ See `docs/RELEASING.md` for the release and rollback procedure. Update `README.m
 ## Working on the code
 - Run: `npx http-server -p 8080 -s -c-1 .` → http://localhost:8080. Add `?storetest` to simulate the Android store and rewarded ads.
 - Desktop shortcuts: keys `1`–`9` pick a cracker, `Space` lights it, `M` mutes, `C` clears, `Esc` closes sheets.
-- `js/crackers.js`: catalogue. Each cracker has a `plan()` (random but seeded timeline) and a `sound()` that synthesises it. Add a cracker here, plus its icon in `ICONS`.
+- `js/crackers.js`: catalogue. Each cracker has a `plan()` (random but seeded timeline) and a `sound()` that synthesises it. Add a cracker here, plus its icon in `ICONS`. Optional `variants: [{ id, name, sw }]`; `plan(r, variantId)` receives the chosen variant (the app caches each variant's sound separately as `id:variant`).
 - `js/synth.js`: offline synthesis toolkit (bang, pops, crackle, hiss, whistle, fuse…) and the outdoor reverb. Sounds render once per variant in an `OfflineAudioContext`; avoid creating thousands of nodes (use `S.grains`/`S.pops`/`S.crackle` for many small sounds).
 - `js/visuals.js`: one class per cracker kind; reads the same plan so visuals, sound, vibration and torch line up. `static torch(plan)` lists flashlight bursts.
 - `js/fx.js`: haptics mixer (sound envelope → vibration), flashlight, spark particles. `js/scene.js`: background themes (`THEMES`: green (default), city, home, village, ghat, palace, snow, desert, army, camp, open), diyas, toran, rangoli, weather, debris. `js/lighter.js`: the agarbatti/candle/phuljhadi held to fuses (real lighting). `MANUAL` in `js/crackers.js`: field-manual text, shelf and eco figures (smoke/PM2.5 marked `src: 'study'` are measured; the rest are estimates and must be labelled so). `js/mic.js`: blow detection. `js/store.js`: free/premium, rewarded unlocks, purchases. `js/app.js`: UI and loop.
 - Native bridge names (Android): `window.ArtinNative` (vibration, torch, `shareImage(base64Png)` for the greeting card), `window.ArtinStore` (ads and billing; events via `window.artinStoreEvent`), back button calls `window.artinBack()`.
 - `?debug` exposes `window.__patakha` (actives, scene, lighter) for automated tests.
+- Art style is comic/cel-shaded: flat fills, a hard shadow tone, ink outlines (`INK` in `js/scene.js`). Keep new art in that style.
 - Store graphics generator: `dev/store.html` (icon, feature graphic).

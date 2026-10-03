@@ -10,7 +10,7 @@ import { Mic } from './mic.js';
 import { Store, PRODUCTS, ls, fmtLeft } from './store.js';
 
 const $ = (s) => document.querySelector(s);
-const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'green', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green' }, ls.get('settings', {}));
+const settings = Object.assign({ variants: {}, vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'green', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green', cardMsg: 'green' }, ls.get('settings', {}));
 const save = () => ls.set('settings', settings);
 if (!byId[settings.sel]) settings.sel = 'anar';
 // v0.5: Green City becomes the default background once for everyone
@@ -100,13 +100,22 @@ function celebrate(b) {
   clearTimeout(msTimer); msTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
 function count(def, vis) {
-  const e = MANUAL[def.id]?.eco || {}, before = BADGES.filter((b) => earned(b, impact.total)).length;
+  const e = MANUAL[def.base || def.id]?.eco || {}, before = BADGES.filter((b) => earned(b, impact.total)).length;
   for (const k of [impact.tonight, impact.total]) { k.count++; k.co2 += e.co2 || 0; k.smoke += e.smoke || 0; k.pm = Math.max(k.pm, e.pm || 0); if ((e.db || 0) >= 110) k.loud++; }
   ls.set('impact', impact.total);
   updateEcoMeter();
   if (vis) { const fp = vis.fusePoint(); popSaving(fp.x, fp.y - 26 * scene.u, e.co2); }
   const now = BADGES.filter((b) => earned(b, impact.total));
   if (now.length > before) setTimeout(() => celebrate(now[now.length - 1]), 900);
+}
+
+// Variants: each one gets its own sound cache key (e.g. 'anar:silver').
+const vdefs = {};
+function withVariant(def) {
+  if (!def.variants) return def;
+  const v = settings.variants?.[def.id] && def.variants.some((x) => x.id === settings.variants[def.id]) ? settings.variants[def.id] : def.variants[0].id;
+  const key = def.id + ':' + v;
+  return (vdefs[key] ||= { ...def, id: key, base: def.id, variant: v, plan: (r) => def.plan(r, v) });
 }
 
 let torchTimers = [];
@@ -116,12 +125,13 @@ async function light(def, x, y, { quiet = false, unlit = false } = {}) {
   if (Store.locked(def.id)) { if (!quiet) openUnlock(def); return null; }
   if (actives.length >= (quiet ? 9 : 10)) { if (!quiet) toast('Let these finish first'); return null; }
   const pos = def.kind === 'phuljhadi' ? { x, y } : scene.ground(x, y);
-  const v = await Audio.variant(def);
+  const vd = withVariant(def);
+  const v = await Audio.variant(vd);
   const vis = new VISUALS[def.kind](st, v.plan, pos.x, pos.y, Infinity);
-  vis.def = def; vis.variant = v;
+  vis.def = vd; vis.variant = v;
   actives.push(vis);
   if (unlit) vis.lit = false; else ignite(vis);
-  Audio.warm(def);
+  Audio.warm(vd);
   return vis;
 }
 /** The fuse catches: sound, vibration, flashlight and visuals all start together. */
@@ -350,56 +360,119 @@ function takeSnapshot() {
   c.drawImage(scene.props, sx, sy, cw, ch, 0, 0, W, H);
   c.globalCompositeOperation = 'lighter'; c.drawImage(sparks.cv, sx, sy, cw, ch, 0, 0, W, H); c.globalCompositeOperation = 'source-over';
 }
-const CARD_STYLES = { green: 'Green Diwali', classic: 'Classic', rangoli: 'Rangoli', diya: 'Diya', minimal: 'Minimal' };
-function petalRing(c, cx, cy, R, n, col, wide) {
+const CARD_STYLES = { green: 'Green Diwali', comic: 'Comic', classic: 'Classic', rangoli: 'Rangoli', lotus: 'Lotus', diya: 'Diya', minimal: 'Minimal' };
+const CARD_MSGS = {
+  diwali: { label: 'Happy Diwali', hi: 'शुभ दीपावली', en: 'HAPPY DIWALI', line: 'May your home be filled with light' },
+  green: { label: 'Green Diwali', hi: 'हरित दीपावली', en: 'A GREEN DIWALI', line: 'Celebrate with light, not smoke' },
+  lakshmi: { label: 'Lakshmi Puja', hi: 'शुभ लक्ष्मी पूजन', en: 'HAPPY LAKSHMI PUJA', line: 'Wishing you wealth, health and happiness' },
+  newyear: { label: 'New Year', hi: 'नूतन वर्ष अभिनंदन', en: 'SAAL MUBARAK', line: 'A bright and prosperous new year to you' },
+  dhanteras: { label: 'Dhanteras', hi: 'शुभ धनतेरस', en: 'HAPPY DHANTERAS', line: 'May good fortune shine on your home' },
+};
+const INKC = '#07120d';
+function petalRing(c, cx, cy, R, n, col, wide, edge) {
   c.fillStyle = col;
   for (let i = 0; i < n; i++) {
     c.save(); c.translate(cx, cy); c.rotate((i / n) * Math.PI * 2);
-    c.beginPath(); c.moveTo(R * 0.35, 0); c.quadraticCurveTo(R * 0.7, -wide, R, 0); c.quadraticCurveTo(R * 0.7, wide, R * 0.35, 0); c.fill(); c.restore();
+    c.beginPath(); c.moveTo(R * 0.35, 0); c.quadraticCurveTo(R * 0.7, -wide, R, 0); c.quadraticCurveTo(R * 0.7, wide, R * 0.35, 0); c.fill();
+    if (edge) { c.strokeStyle = edge; c.lineWidth = 3; c.stroke(); }
+    c.restore();
   }
 }
 function cardDiya(c, x, y, s) {
-  c.fillStyle = '#b4532a'; c.beginPath(); c.moveTo(x - 30 * s, y); c.quadraticCurveTo(x, y + 30 * s, x + 30 * s, y); c.closePath(); c.fill();
-  c.fillStyle = '#d97a45'; c.beginPath(); c.ellipse(x, y, 30 * s, 7 * s, 0, 0, Math.PI * 2); c.fill();
-  const g = c.createRadialGradient(x, y - 22 * s, 0, x, y - 22 * s, 40 * s);
-  g.addColorStop(0, 'rgba(255,240,190,1)'); g.addColorStop(0.3, 'rgba(255,190,80,0.8)'); g.addColorStop(1, 'rgba(255,120,30,0)');
-  c.fillStyle = g; c.beginPath(); c.arc(x, y - 22 * s, 40 * s, 0, Math.PI * 2); c.fill();
-  c.fillStyle = '#fffbe6'; c.beginPath(); c.moveTo(x - 7 * s, y - 4 * s); c.quadraticCurveTo(x - 8 * s, y - 22 * s, x, y - 40 * s); c.quadraticCurveTo(x + 8 * s, y - 22 * s, x + 7 * s, y - 4 * s); c.fill();
+  c.lineWidth = 4 * s; c.strokeStyle = INKC;
+  c.fillStyle = '#d0682f'; c.beginPath(); c.moveTo(x - 30 * s, y); c.quadraticCurveTo(x, y + 30 * s, x + 30 * s, y); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#ec8a4c'; c.beginPath(); c.ellipse(x, y, 30 * s, 7 * s, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+  const g = c.createRadialGradient(x, y - 22 * s, 0, x, y - 22 * s, 46 * s);
+  g.addColorStop(0, 'rgba(255,240,190,0.9)'); g.addColorStop(0.3, 'rgba(255,190,80,0.5)'); g.addColorStop(1, 'rgba(255,120,30,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(x, y - 22 * s, 46 * s, 0, Math.PI * 2); c.fill();
+  const flame = (w, h, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(x - w * s, y - 4 * s); c.quadraticCurveTo(x - (w + 1) * s, y - h * 0.55 * s, x, y - h * s); c.quadraticCurveTo(x + (w + 1) * s, y - h * 0.55 * s, x + w * s, y - 4 * s); c.closePath(); c.fill(); };
+  flame(9, 44, '#ff7a1a'); c.lineWidth = 3 * s; c.stroke(); flame(6, 36, '#ffc94a'); flame(3, 24, '#fffbe8');
+}
+/** Comic lettering: thick ink outline under the fill. */
+function inkText(c, txt, x, y, fill, w = 10) { c.lineJoin = 'round'; c.strokeStyle = INKC; c.lineWidth = w; c.strokeText(txt, x, y); c.fillStyle = fill; c.fillText(txt, x, y); }
+function lotus(c, cx, cy, R) {
+  const petal = (a, len, wid) => { c.save(); c.translate(cx, cy); c.rotate(a); c.beginPath(); c.moveTo(0, 0); c.bezierCurveTo(-wid, -len * 0.4, -wid * 0.6, -len * 0.85, 0, -len); c.bezierCurveTo(wid * 0.6, -len * 0.85, wid, -len * 0.4, 0, 0); c.fill(); c.stroke(); c.restore(); };
+  c.strokeStyle = '#ffd36b'; c.lineWidth = 4;
+  c.fillStyle = 'rgba(255,120,160,0.35)'; for (const a of [-1.2, -0.6, 0.6, 1.2]) petal(a, R * 0.9, R * 0.32);
+  c.fillStyle = 'rgba(255,170,200,0.55)'; for (const a of [-0.3, 0.3]) petal(a, R, R * 0.34);
+  c.fillStyle = 'rgba(255,220,235,0.75)'; petal(0, R * 1.08, R * 0.3);
+  c.beginPath(); c.moveTo(cx - R * 1.3, cy + 6); c.quadraticCurveTo(cx, cy + R * 0.28, cx + R * 1.3, cy + 6); c.stroke();
 }
 function drawCard() {
-  const cv = $('#cardCanvas'), c = cv.getContext('2d'), W = cv.width, H = cv.height, name = $('#cardName').value.trim(), style = settings.cardStyle;
+  const cv = $('#cardCanvas'), c = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const name = $('#cardName').value.trim(), to = $('#cardTo').value.trim(), style = settings.cardStyle;
+  const m = CARD_MSGS[settings.cardMsg] || CARD_MSGS.diwali;
   c.save();
   c.drawImage(snap, 0, 0);
   const shade = (y0, y1, a0, a1) => { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, `rgba(2,14,9,${a0})`); g.addColorStop(1, `rgba(2,14,9,${a1})`); c.fillStyle = g; c.fillRect(0, y0, W, y1 - y0); };
   const spaced = (txt, x, y, sp) => { if ('letterSpacing' in c) c.letterSpacing = sp + 'px'; c.fillText(txt, x, y); if ('letterSpacing' in c) c.letterSpacing = '0px'; };
-  c.textAlign = 'center'; c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 24;
-  let nameY = H - 150;
-  if (style === 'minimal') {
-    c.fillStyle = 'rgba(2,14,9,0.55)'; c.fillRect(0, 0, W, H);
-    c.shadowBlur = 0; c.strokeStyle = '#ffb627'; c.lineWidth = 2; c.beginPath(); c.moveTo(W / 2 - 120, H / 2 + 30); c.lineTo(W / 2 + 120, H / 2 + 30); c.stroke();
-    c.fillStyle = '#fff4e2'; c.font = '104px "Yatra One", sans-serif'; c.fillText('शुभ दीपावली', W / 2, H / 2 - 30);
-    c.font = '600 40px "Chakra Petch", sans-serif'; c.fillStyle = '#ffb627'; spaced('HAPPY DIWALI', W / 2, H / 2 + 100, 16);
-    nameY = H / 2 + 190;
+  const fit = (txt, font, max) => { let size = parseInt(font.match(/(\d+)px/)[1], 10); c.font = font; while (c.measureText(txt).width > max && size > 20) { size -= 4; c.font = font.replace(/\d+px/, size + 'px'); } };
+  c.textAlign = 'center';
+  let nameY = H - 150, toY = 92, footer = 'rgba(220,235,225,0.8)';
+  if (style === 'comic') {
+    // halftone dots, ink panel border, starburst title and a speech bubble
+    c.fillStyle = 'rgba(255,255,255,0.07)';
+    for (let y = 0; y < H; y += 18) for (let x = (y / 18) % 2 ? 9 : 0; x < W; x += 18) { c.beginPath(); c.arc(x, y, 2 + 3 * (y / H), 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = '#fffdf5'; c.fillRect(0, 0, W, 26); c.fillRect(0, H - 26, W, 26); c.fillRect(0, 0, 26, H); c.fillRect(W - 26, 0, 26, H);
+    c.strokeStyle = INKC; c.lineWidth = 10; c.strokeRect(26, 26, W - 52, H - 52);
+    const bx = W / 2, by = 240;
+    c.save(); c.translate(bx, by); c.rotate(-0.05); c.beginPath();
+    for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2, rr = i % 2 ? 300 : 400; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr * 0.42); }
+    c.closePath(); c.fillStyle = '#ffd23f'; c.fill(); c.lineWidth = 9; c.strokeStyle = INKC; c.stroke();
+    c.fillStyle = '#ff5c3a'; c.beginPath(); for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2, rr = i % 2 ? 230 : 290; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr * 0.4); } c.closePath(); c.fill(); c.lineWidth = 5; c.stroke();
+    fit(m.en + '!', '700 86px "Chakra Petch", sans-serif', 500); inkText(c, m.en + '!', 0, 28, '#ffffff', 14);
+    c.restore();
+    c.font = '96px "Yatra One", sans-serif'; inkText(c, m.hi, W / 2, 470, '#ffd23f', 14);
+    const sy = H - 330;
+    c.fillStyle = '#ffffff'; c.strokeStyle = INKC; c.lineWidth = 7;
+    c.beginPath(); c.ellipse(W / 2, sy, 420, 110, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(W / 2 - 160, sy + 92); c.lineTo(W / 2 - 250, sy + 190); c.lineTo(W / 2 - 80, sy + 104); c.fill(); c.stroke();
+    c.fillStyle = '#ffffff'; c.fillRect(W / 2 - 170, sy + 78, 100, 30);
+    c.fillStyle = INKC; fit(m.line + '!', '700 44px Barlow, sans-serif', 740); c.fillText(m.line + '!', W / 2, sy + 16);
+    nameY = H - 100; toY = 600; footer = INKC;
+  } else if (style === 'minimal') {
+    c.fillStyle = 'rgba(2,14,9,0.6)'; c.fillRect(0, 0, W, H);
+    c.strokeStyle = '#ffc857'; c.lineWidth = 2; c.beginPath(); c.moveTo(W / 2 - 120, H / 2 + 30); c.lineTo(W / 2 + 120, H / 2 + 30); c.stroke();
+    c.fillStyle = '#fff4e2'; fit(m.hi, '104px "Yatra One", sans-serif', W - 140); c.fillText(m.hi, W / 2, H / 2 - 30);
+    c.font = '600 40px "Chakra Petch", sans-serif'; c.fillStyle = '#ffc857'; spaced(m.en, W / 2, H / 2 + 100, 16);
+    c.font = 'italic 34px Barlow, sans-serif'; c.fillStyle = '#d6e6e0'; c.fillText(m.line, W / 2, H / 2 + 160);
+    nameY = H / 2 + 250; toY = H / 2 - 190;
+  } else if (style === 'lotus') {
+    const g = c.createRadialGradient(W / 2, H * 0.55, 0, W / 2, H * 0.55, H * 0.7);
+    g.addColorStop(0, 'rgba(2,20,13,0.55)'); g.addColorStop(1, 'rgba(2,14,9,0.92)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.strokeStyle = '#ffd36b'; c.lineWidth = 3; c.setLineDash([2, 12]); c.lineCap = 'round';
+    c.beginPath(); c.arc(W / 2, H * 0.47, 430, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+    c.lineWidth = 2; c.beginPath(); c.arc(W / 2, H * 0.47, 400, 0, Math.PI * 2); c.stroke();
+    lotus(c, W / 2, H * 0.62, 190);
+    c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 20;
+    c.fillStyle = '#ffd36b'; fit(m.hi, '112px "Yatra One", sans-serif', 760); c.fillText(m.hi, W / 2, H * 0.36);
+    c.fillStyle = '#fff4e2'; c.font = '600 46px "Chakra Petch", sans-serif'; spaced(m.en, W / 2, H * 0.36 + 80, 12);
+    c.font = 'italic 34px Barlow, sans-serif'; c.fillStyle = '#d6e6e0'; c.fillText(m.line, W / 2, H * 0.36 + 136);
+    c.shadowBlur = 0; nameY = H - 130; toY = 120;
   } else {
+    c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 24;
     shade(0, H * 0.45, 0.7, 0); shade(H * 0.62, H, 0, 0.88);
-    c.fillStyle = '#ffb627'; c.font = '128px "Yatra One", "Noto Sans Devanagari", sans-serif';
-    c.fillText(style === 'green' ? 'हरित दीपावली' : 'शुभ दीपावली', W / 2, 200);
-    c.fillStyle = '#fff4e2'; c.font = '700 64px "Chakra Petch", sans-serif';
-    spaced(style === 'green' ? 'A GREEN DIWALI' : 'HAPPY DIWALI', W / 2, 296, 12);
+    const hm = style === 'green' && settings.cardMsg === 'diwali' ? CARD_MSGS.green : m;
+    c.fillStyle = '#ffc857'; fit(hm.hi, '128px "Yatra One", "Noto Sans Devanagari", sans-serif', W - 120); c.fillText(hm.hi, W / 2, 220);
+    c.fillStyle = '#fff4e2'; fit(hm.en, '700 64px "Chakra Petch", sans-serif', W - 140); spaced(hm.en, W / 2, 312, 12);
+    c.shadowBlur = 0;
   }
-  c.shadowBlur = 0;
   if (style === 'rangoli') {
-    c.strokeStyle = '#ffb627'; c.lineWidth = 6; c.strokeRect(28, 28, W - 56, H - 56); c.lineWidth = 2; c.strokeRect(46, 46, W - 92, H - 92);
+    c.strokeStyle = '#ffc857'; c.lineWidth = 6; c.strokeRect(28, 28, W - 56, H - 56); c.lineWidth = 2; c.strokeRect(46, 46, W - 92, H - 92);
     for (const [x, y] of [[46, 46], [W - 46, 46], [46, H - 46], [W - 46, H - 46]]) {
-      petalRing(c, x, y, 120, 12, '#ff4f8b', 16); petalRing(c, x, y, 84, 10, '#ffcc33', 12); petalRing(c, x, y, 52, 8, '#2ecc71', 10);
-      c.fillStyle = '#ff9933'; c.beginPath(); c.arc(x, y, 18, 0, Math.PI * 2); c.fill();
+      petalRing(c, x, y, 120, 12, '#ff4f8b', 16, INKC); petalRing(c, x, y, 84, 10, '#ffcc33', 12, INKC); petalRing(c, x, y, 52, 8, '#2ecc71', 10, INKC);
+      c.fillStyle = '#ff9933'; c.beginPath(); c.arc(x, y, 18, 0, Math.PI * 2); c.fill(); c.strokeStyle = INKC; c.lineWidth = 3; c.stroke();
     }
+    c.font = 'italic 500 38px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText(m.line, W / 2, 380);
+    toY = 110;
   } else if (style === 'diya') {
     const g = c.createRadialGradient(W / 2, H, 0, W / 2, H, H * 0.7); g.addColorStop(0, 'rgba(255,150,50,0.35)'); g.addColorStop(1, 'rgba(255,150,50,0)');
     c.fillStyle = g; c.fillRect(0, 0, W, H);
     for (let i = 0; i < 5; i++) cardDiya(c, W * (0.14 + i * 0.18), H - 250 + Math.abs(i - 2) * 22, 1.5 - Math.abs(i - 2) * 0.15);
-    c.font = 'italic 500 38px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('May your home be filled with light', W / 2, 370);
+    c.font = 'italic 500 38px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText(m.line, W / 2, 380);
     nameY = H - 110;
+  } else if (style === 'classic') {
+    c.font = 'italic 500 38px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 16; c.fillText(m.line, W / 2, 380); c.shadowBlur = 0;
   } else if (style === 'green') {
     const t = impact.total, got = BADGES.filter((x) => earned(x, t));
     const g = c.createLinearGradient(0, H * 0.45, 0, H); g.addColorStop(0, 'rgba(4,30,22,0)'); g.addColorStop(0.35, 'rgba(4,30,22,0.82)'); g.addColorStop(1, 'rgba(3,18,14,0.96)');
@@ -413,8 +486,8 @@ function drawCard() {
     const cells = [['🚬', `${Math.round(t.smoke)}`, "cigarettes' smoke"], ['🚗', `${(t.co2 / 120).toFixed(1)} km`, 'of car CO₂'], ['🎆', `${t.count}`, 'crackers, no pollution']];
     cells.forEach(([icon, v, l], i) => {
       const cx = W / 2 + (i - 1) * 300, cy = top + 300;
-      c.fillStyle = 'rgba(46,229,157,0.12)'; c.fillRect(cx - 135, cy - 50, 270, 140);
-      c.strokeStyle = 'rgba(46,229,157,0.5)'; c.lineWidth = 2; c.strokeRect(cx - 135, cy - 50, 270, 140);
+      c.fillStyle = 'rgba(46,229,157,0.14)'; c.fillRect(cx - 135, cy - 50, 270, 140);
+      c.strokeStyle = '#2ee59d'; c.lineWidth = 3; c.strokeRect(cx - 135, cy - 50, 270, 140);
       c.font = '40px sans-serif'; c.fillText(icon, cx, cy);
       c.fillStyle = '#ffffff'; c.font = '600 40px "Share Tech Mono", monospace'; c.fillText(v, cx, cy + 50);
       c.fillStyle = '#a9d9c6'; c.font = '26px Barlow, sans-serif'; c.fillText(l, cx, cy + 80);
@@ -423,9 +496,18 @@ function drawCard() {
     c.fillStyle = '#ffc857'; c.font = 'italic 500 36px Barlow, sans-serif'; c.fillText('Join me: celebrate with light, not smoke 🪔', W / 2, top + 530);
     nameY = H - 115;
   }
-  if (name) { c.shadowBlur = 16; c.font = '500 50px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('with love from ' + name, W / 2, nameY); }
-  c.shadowBlur = 0; c.font = '28px "Share Tech Mono", monospace'; c.fillStyle = 'rgba(220,205,230,0.75)';
-  c.fillText('Made with Patakha · ARTIN Studios', W / 2, H - 64);
+  if (to) {
+    c.font = 'italic 500 42px Barlow, sans-serif';
+    if (style === 'comic') inkText(c, `Dear ${to},`, W / 2, toY, '#ffffff', 9);
+    else { c.fillStyle = '#ffe2b0'; c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 14; c.fillText(`Dear ${to},`, W / 2, toY); c.shadowBlur = 0; }
+  }
+  if (name) {
+    c.font = '500 50px Barlow, sans-serif';
+    if (style === 'comic') inkText(c, 'with love from ' + name, W / 2, nameY, '#ffd23f', 10);
+    else { c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 16; c.fillStyle = '#ffe2b0'; c.fillText('with love from ' + name, W / 2, nameY); c.shadowBlur = 0; }
+  }
+  c.font = '28px "Share Tech Mono", monospace'; c.fillStyle = footer;
+  c.fillText('Made with Patakha · ARTIN Studios', W / 2, H - (style === 'comic' ? 40 : 64));
   c.restore();
 }
 function renderCardStyles() {
@@ -433,8 +515,15 @@ function renderCardStyles() {
   for (const [id, label] of Object.entries(CARD_STYLES)) {
     const b = document.createElement('button');
     b.textContent = label; b.setAttribute('aria-pressed', String(settings.cardStyle === id));
-    b.addEventListener('click', () => { settings.cardStyle = id; save(); renderCardStyles(); drawCard(); });
+    b.addEventListener('click', () => { settings.cardStyle = id; if (id === 'green') settings.cardMsg = 'green'; save(); renderCardStyles(); drawCard(); });
     box.appendChild(b);
+  }
+  const mb = $('#cardMsgs'); mb.innerHTML = '';
+  for (const [id, mm] of Object.entries(CARD_MSGS)) {
+    const b = document.createElement('button');
+    b.textContent = mm.label; b.setAttribute('aria-pressed', String(settings.cardMsg === id));
+    b.addEventListener('click', () => { settings.cardMsg = id; save(); renderCardStyles(); drawCard(); });
+    mb.appendChild(b);
   }
 }
 async function openCard() {
@@ -446,7 +535,7 @@ async function openCard() {
     await new Promise((r) => setTimeout(r, 650));
   }
   takeSnapshot();
-  await Promise.all(['128px "Yatra One"', '700 64px "Chakra Petch"', '500 50px Barlow', '28px "Share Tech Mono"'].map((f) => document.fonts.load(f, 'शुभ दीपावली HAPPY').catch(() => {})));
+  await Promise.all(['128px "Yatra One"', '700 86px "Chakra Petch"', '700 44px Barlow', 'italic 500 38px Barlow', '700 64px "Chakra Petch"', '500 50px Barlow', '28px "Share Tech Mono"'].map((f) => document.fonts.load(f, 'शुभ दीपावली HAPPY').catch(() => {})));
   if (!CARD_STYLES[settings.cardStyle]) settings.cardStyle = 'green';
   renderCardStyles();
   drawCard();
@@ -454,6 +543,7 @@ async function openCard() {
 }
 $('#btnCard').addEventListener('click', openCard);
 $('#cardName').addEventListener('input', drawCard);
+$('#cardTo').addEventListener('input', drawCard);
 $('#btnCardShare').addEventListener('click', () => {
   $('#cardCanvas').toBlob(async (blob) => {
     if (!blob) return;
@@ -499,7 +589,7 @@ function renderThemes() {
       b.className = 'theme thumb cut'; b.setAttribute('aria-pressed', String(settings.theme === id));
       b.setAttribute('aria-label', `${t.name} background`);
       b.innerHTML = `<i style="background:linear-gradient(${t.sky[0]},${t.sky[2]} 60%,${t.wall[0]} 62%,${t.floor[1]})"></i><b>${t.name}</b><span lang="hi">${t.hi}</span>`;
-      b.addEventListener('click', () => { setTheme(id); if (box.id === 'themeStrip' && window.innerHeight < 500) setTimeout(() => { $('#themeBar').hidden = true; }, 350); });
+      b.addEventListener('click', () => { setTheme(id); if (box.id === 'themeStrip' && window.innerHeight < 500) setTimeout(() => { $('#themeBar').hidden = true; renderVariants(); }, 350); });
       box.appendChild(b);
       pending.push([b.querySelector('i'), id]);
     }
@@ -511,8 +601,12 @@ function renderThemes() {
   };
   next();
 }
-$('#btnTheme').addEventListener('click', () => { const bar = $('#themeBar'); bar.hidden = !bar.hidden; if (!bar.hidden) { renderThemes(); bar.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }); } });
-$('#themeBarClose').addEventListener('click', () => { $('#themeBar').hidden = true; });
+$('#btnTheme').addEventListener('click', () => {
+  const bar = $('#themeBar'); bar.hidden = !bar.hidden;
+  if (!bar.hidden) { renderThemes(); bar.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }); }
+  renderVariants();
+});
+$('#themeBarClose').addEventListener('click', () => { $('#themeBar').hidden = true; renderVariants(); });
 
 // ------------------------------------------------------------------ lighter
 function setLighter(kind) {
@@ -656,8 +750,21 @@ function select(id, user = false) {
   if (Store.locked(id)) { openUnlock(def); return; }
   settings.sel = id; save();
   refreshTray();
+  renderVariants();
   hint(def.kind === 'phuljhadi' ? 'Touch and drag to draw with the sparkler' : `Tap the terrace to light the ${def.name}`, true);
-  Audio.warm(def);
+  Audio.warm(withVariant(def));
+}
+
+function renderVariants() {
+  const def = byId[settings.sel], bar = $('#variantBar');
+  if (!def?.variants || !$('#themeBar').hidden) { bar.hidden = true; return; }
+  const cur = withVariant(def).variant;
+  bar.innerHTML = `<span class="vb-label">${def.name}</span>` + def.variants.map((v) => `<button data-v="${v.id}" aria-pressed="${v.id === cur}"><i style="background:${v.sw}"></i>${v.name}</button>`).join('');
+  bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    settings.variants[def.id] = b.dataset.v; save(); Audio.tick(); Haptics.tap(5);
+    renderVariants(); Audio.warm(withVariant(def));
+  }));
+  bar.hidden = false;
 }
 
 let hintTimer = 0;
