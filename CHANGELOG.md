@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.10.0] — 2026-10-03 · Play build 10
+## [0.10.0] — 2026-10-03 · Play build 10 · `4d902f2`
 ### Added
 - **35 crackers (26 free), 76 variants in all.** 22 new:
   - Bombs: Lakshmi Bomb, Aloo Bomb, Chocolate Bomb, Bullet Bomb, Pop-Pop snappers.
