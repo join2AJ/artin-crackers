@@ -1,11 +1,12 @@
 // Offline cache: the app shell is cached on install; everything is served
 // cache-first and refreshed in the background, so updates land on the next visit.
 // Bump CACHE whenever shipped web files change.
-const CACHE = 'patakha-v6';
+const CACHE = 'patakha-v8';
 const SHELL = [
   './', 'index.html', 'privacy.html', 'version.json', 'manifest.webmanifest',
   'css/app.css', 'css/fonts.css',
-  'js/app.js', 'js/audio.js', 'js/synth.js', 'js/crackers.js', 'js/visuals.js', 'js/scene.js', 'js/fx.js', 'js/mic.js', 'js/store.js', 'js/lighter.js',
+  'js/app.js', 'js/audio.js', 'js/synth.js', 'js/crackers.js', 'js/fx.js', 'js/mic.js', 'js/store.js',
+  'js/vendor/three.module.min.js', 'js/w3d/art.js', 'js/w3d/maps.js', 'js/w3d/world.js', 'js/w3d/crackers3d.js', 'js/w3d/player.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'fonts/Barlow-400.woff2', 'fonts/Barlow-500.woff2', 'fonts/Barlow-600.woff2', 'fonts/ChakraPetch-600.woff2', 'fonts/ChakraPetch-700.woff2',
   'fonts/ShareTechMono-400.woff2', 'fonts/YatraOne-deva.woff2', 'fonts/YatraOne-latin.woff2',

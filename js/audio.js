@@ -84,6 +84,8 @@ export const Audio = {
     src.start(c.currentTime + lead);
     return {
       when: performance.now() + lead * 1000 + this.latencyMs(),
+      /** Positional audio: follow the cracker as the player moves (pan -1..1, gain 0..1). */
+      place: (p, gg) => { const t = c.currentTime; sp.pan.setTargetAtTime(Math.max(-1, Math.min(1, p)), t, 0.05); g.gain.setTargetAtTime(gg, t, 0.05); },
       stop: (fade = 0.15) => { try { g.gain.setTargetAtTime(0, c.currentTime, fade / 3); src.stop(c.currentTime + fade); } catch { /* already stopped */ } },
     };
   },

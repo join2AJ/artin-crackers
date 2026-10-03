@@ -1,56 +1,48 @@
-// Patakha: Diwali Crackers Simulator. App controller: stage loop, input, tray, sheets.
+// Patakha: Diwali Crackers. The 3D game: map select, first-person controls,
+// placing and lighting crackers, and the sheets (green impact, cards, shop…).
 
+import * as THREE from './vendor/three.module.min.js';
 import { CRACKERS, byId, ICONS, DISTANT, PALETTES, MANUAL, CATS } from './crackers.js';
-import { Lighter, LIGHTERS } from './lighter.js';
 import { Audio } from './audio.js';
-import { Haptics, Torch, Sparks, NATIVE } from './fx.js';
-import { Scene, THEMES } from './scene.js';
-import { VISUALS, burst } from './visuals.js';
+import { Haptics, Torch, NATIVE } from './fx.js';
 import { Mic } from './mic.js';
 import { Store, PRODUCTS, ls, fmtLeft } from './store.js';
+import { World, QUALITY } from './w3d/world.js';
+import { MAPS } from './w3d/maps.js';
+import { KINDS, TORCH } from './w3d/crackers3d.js';
+import { Player, Lighter, LIGHTERS } from './w3d/player.js';
 
 const $ = (s) => document.querySelector(s);
-const settings = Object.assign({ variants: {}, vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'green', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green', cardMsg: 'green' }, ls.get('settings', {}));
+const weak = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
+const settings = Object.assign({ variants: {}, vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, micSens: 0.8, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green', cardMsg: 'green',
+  map: 'gali', quality: weak ? 'low' : 'medium', look: 1, invert: false, bob: true, fps: false, mode: 'place' }, ls.get('settings', {}));
 const save = () => ls.set('settings', settings);
 if (!byId[settings.sel]) settings.sel = 'anar';
-// v0.5: Green City becomes the default background once for everyone
-if (!settings.greenDefault) { settings.theme = 'green'; settings.greenDefault = true; }
+if (!MAPS[settings.map]) settings.map = 'gali';
+if (!QUALITY[settings.quality]) settings.quality = 'medium';
 
-// ------------------------------------------------------------------ stage
-const stageEl = $('#stage'), trayEl = $('#tray'), flashesEl = $('#flashes');
-const scene = new Scene($('#sky'), $('#props'));
-const sparks = new Sparks($('#fx'));
-let actives = [];
-let liveFlashes = 0;
-
-const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-const st = {
-  scene, sparks,
-  /** Light up the whole scene from (x, y): sky glow + local bloom. */
-  flash(x, y, strength, ms, colour = '#fff1d6') {
-    if (liveFlashes > 5 || strength <= 0.02) return;
-    const [r, g, b] = hexRgb(colour);
-    const el = document.createElement('div');
-    el.className = 'flash';
-    el.style.background = `radial-gradient(circle at ${x + 0.1 * scene.w}px ${y + 0.1 * scene.h}px, rgba(${r},${g},${b},0.95) 0%, rgba(${r},${g},${b},0.38) ${12 + strength * 10}%, rgba(${r},${g},${b},0.08) 45%, transparent 75%)`;
-    flashesEl.appendChild(el); liveFlashes++;
-    const a = el.animate([{ opacity: Math.min(1, strength) }, { opacity: 0 }], { duration: ms, easing: 'cubic-bezier(.1,.7,.3,1)' });
-    a.onfinish = () => { el.remove(); liveFlashes--; };
-  },
-  shake(s) {
-    if (!settings.shake) return;
-    const k = 7 * s * scene.u, f = [];
-    for (let i = 0; i <= 8; i++) { const d = (1 - i / 8) * k; f.push({ transform: `translate(${(Math.random() - 0.5) * 2 * d}px, ${(Math.random() - 0.5) * 2 * d}px)` }); }
-    stageEl.animate(f, { duration: 260 + 180 * s, easing: 'ease-out' });
-  },
-};
+// ------------------------------------------------------------------ world
+const world = new World($('#game'), settings.quality);
+const player = new Player(world);
+const lighter = new Lighter(world);
+lighter.attach();
+let actives = []; // crackers in the world: unlit, burning and spent shells
+let playing = false, held = null, lighting = null, torchOn = false;
+let torchTimers = [];
+const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
-  scene.resize(w, h, dpr, trayEl.getBoundingClientRect().height || 100);
-  sparks.resize(w, h, dpr);
+  world.resize();
+  $('#rotate').hidden = !(window.innerHeight > window.innerWidth * 1.05 && playing && !NATIVE);
 }
 window.addEventListener('resize', resize);
+
+/** Screen position of a world point (null when behind the camera). */
+function toScreen(p) {
+  const v = tmp2.copy(p).project(world.camera);
+  if (v.z > 1) return null;
+  return { x: (v.x * 0.5 + 0.5) * window.innerWidth, y: (-v.y * 0.5 + 0.5) * window.innerHeight };
+}
 
 // ------------------------------------------------------------------ lighting & green impact
 // Every virtual cracker is one real cracker not burst: we add up what it would have cost the air.
@@ -99,16 +91,15 @@ function celebrate(b) {
   el.classList.add('show'); Haptics.tap(30);
   clearTimeout(msTimer); msTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
-function count(def, vis) {
+function count(def, sp) {
   const e = MANUAL[def.base || def.id]?.eco || {}, before = BADGES.filter((b) => earned(b, impact.total)).length;
   for (const k of [impact.tonight, impact.total]) { k.count++; k.co2 += e.co2 || 0; k.smoke += e.smoke || 0; k.pm = Math.max(k.pm, e.pm || 0); if ((e.db || 0) >= 110) k.loud++; }
   ls.set('impact', impact.total);
   updateEcoMeter();
-  if (vis) { const fp = vis.fusePoint(); popSaving(fp.x, fp.y - 26 * scene.u, e.co2); }
+  if (sp) popSaving(sp.x, sp.y - 26, e.co2);
   const now = BADGES.filter((b) => earned(b, impact.total));
   if (now.length > before) setTimeout(() => celebrate(now[now.length - 1]), 900);
 }
-
 // Variants: each one gets its own sound cache key (e.g. 'anar:silver').
 const vdefs = {};
 function withVariant(def) {
@@ -118,181 +109,280 @@ function withVariant(def) {
   return (vdefs[key] ||= { ...def, id: key, base: def.id, variant: v, plan: (r) => def.plan(r, v) });
 }
 
-let torchTimers = [];
-/** Puts a cracker on the terrace. Lit at once, or left unlit for the lighter (`unlit`). */
-async function light(def, x, y, { quiet = false, unlit = false } = {}) {
+// ------------------------------------------------------------------ placing and lighting
+const MAX_LIVE = 14;
+async function place() {
+  const def = byId[settings.sel];
   Audio.unlock();
-  if (Store.locked(def.id)) { if (!quiet) openUnlock(def); return null; }
-  if (actives.length >= (quiet ? 9 : 10)) { if (!quiet) toast('Let these finish first'); return null; }
-  const pos = def.kind === 'phuljhadi' ? { x, y } : scene.ground(x, y);
-  const vd = withVariant(def);
-  const v = await Audio.variant(vd);
-  const vis = new VISUALS[def.kind](st, v.plan, pos.x, pos.y, Infinity);
-  vis.def = vd; vis.variant = v;
-  actives.push(vis);
-  if (unlit) vis.lit = false; else ignite(vis);
-  Audio.warm(vd);
-  return vis;
+  if (Store.locked(def.id)) { openUnlock(def); return; }
+  if (actives.filter((c) => !c.spent).length >= MAX_LIVE) { toast('Light these first'); return; }
+  const aim = world.aimGround(3.5);
+  if (aim.distanceTo(tmp.set(player.pos.x, 0, player.pos.z)) < 0.6) { toast('Look down at the ground in front of you'); return; }
+  const o = world.collide(aim.x, aim.z, 0.25);
+  aim.x = o.x; aim.z = o.z;
+  const vd = withVariant(def), v = await Audio.variant(vd);
+  const c = new KINDS[def.kind](world, vd, v, aim, player.yaw);
+  if (def.kind === 'phuljhadi') c.plant();
+  actives.push(c);
+  Audio.warm(vd); Audio.tick(); Haptics.tap(8);
+  hint(def.kind === 'ladi' ? 'Aim at the end of the string and press Light' : `Aim at the ${def.name} and press Light`, true);
 }
-/** The fuse catches: sound, vibration, flashlight and visuals all start together. */
-function ignite(vis) {
-  const def = vis.def, v = vis.variant;
-  const h = Audio.play(v.buffer, { pan: (vis.x / scene.w - 0.5) * 1.2 });
-  vis.when = h.when; vis.lit = true; vis.sound = h;
-  Haptics.add(v.envelope, def.feel, h.when);
-  if (Torch.active) {
-    for (const f of VISUALS[def.kind].torch(v.plan)) torchTimers.push(setTimeout(() => Torch.flash(f.ms), Math.max(0, h.when - performance.now() + f.t * 1000)));
+/** Takes a phuljhadi or pencil in your hand. */
+async function hold() {
+  const def = byId[settings.sel];
+  Audio.unlock();
+  if (def.kind !== 'phuljhadi') { toast(`Never hold a ${def.name}! Place it on the ground, then light it.`); Haptics.tap(20); return; }
+  if (Store.locked(def.id)) { openUnlock(def); return; }
+  dropHeld();
+  const vd = withVariant(def), v = await Audio.variant(vd);
+  const c = new KINDS.phuljhadi(world, vd, v, new THREE.Vector3(), 0);
+  c.g.removeFromParent(); world.hand.add(c.g);
+  c.g.position.set(-0.2, -0.32, -0.55); c.g.rotation.set(-0.7, 0, -0.15);
+  c.body.held = true;
+  held = { kind: 'cracker', c };
+  actives.push(c);
+  Audio.warm(vd); Audio.tick();
+  hint('Press Light to light your ' + def.name, true);
+}
+/** Lights a cracker's fuse: sound, vibration, flashlight and the burn all start together. */
+function ignite(c) {
+  const v = c.v, h = Audio.play(v.buffer, { gain: 0 });
+  c.sound = h; c.ignite(h.when);
+  placeSound(c);
+  const d = c.g.getWorldPosition(tmp).distanceTo(world.camera.position);
+  Haptics.add(v.envelope, c.def.feel * Math.max(0.15, 1 - d / 30), h.when);
+  if (Torch.active && settings.torch) {
+    for (const f of (TORCH[c.def.kind] || (() => []))(v.plan)) torchTimers.push(setTimeout(() => Torch.flash(f.ms), Math.max(0, h.when - performance.now() + f.t * 1000)));
     if (torchTimers.length > 400) torchTimers = torchTimers.slice(-200);
   }
-  count(def, vis);
+  count(c.def, toScreen(c.fuseTip(tmp)));
   hint(null);
 }
+/** Positional sound: pan and distance follow the player. */
+function placeSound(c) {
+  if (!c.sound?.place) return;
+  const cam = world.camera, p = c.g.getWorldPosition(tmp), d = p.distanceTo(cam.position);
+  const right = player.right(tmp2), dx = p.x - cam.position.x, dz = p.z - cam.position.z, len = Math.hypot(dx, dz) || 1;
+  const pan = c.body.held ? -0.2 : ((dx * right.x + dz * right.z) / len) * Math.min(1, len / 2) * 0.85;
+  c.sound.place(pan, Math.min(1, 1.6 / (1 + d * 0.18)));
+}
+function startLighting(target) {
+  if (lighting) return;
+  if (!lighter.out) setLighter(true);
+  lighting = { target, t: 0 };
+  Audio.tick();
+}
+function stepLighting(dt) {
+  if (!lighting) { lighter.reachTo(null); return; }
+  const tg = lighting.target;
+  const p = tg.kind === 'diya' ? tg.d.flame : tg.c.fuseTip(tmp);
+  lighter.reachTo(p);
+  lighting.t += dt;
+  const tip = lighter.tip(tmp2);
+  if (lighting.t > 0.2 && Math.random() < 0.6) world.sparks.spawn({ x: p.x, y: p.y, z: p.z, vx: (Math.random() - 0.5), vy: Math.random() * 0.8, vz: (Math.random() - 0.5), life: 0.2, size: 0.025, c: '#ffb347', drag: 2, grav: 3 });
+  if (lighting.t > 0.25 + lighter.catchTime || (lighting.t > 0.15 && tip.distanceTo(p) < 0.04)) {
+    if (tg.kind === 'diya') { tg.d.lit = true; Audio.strike(); Haptics.tap(8); }
+    else if (!tg.c.lit && !tg.c.done) ignite(tg.c);
+    lighting = null;
+  }
+}
+function dropHeld() {
+  if (!held) return;
+  if (held.kind === 'prop') { held.b.held = false; held.b.v.set(0, 0, 0); }
+  else if (!held.c.lit) held.c.remove();
+  held = null;
+}
+function throwHeld() {
+  if (held?.kind !== 'prop') return;
+  const b = held.b, f = player.forward(tmp);
+  b.held = false; b.v.copy(f).multiplyScalar(7).add(player.vel); b.v.y += 2.2;
+  b.w.set(Math.random() * 8 - 4, Math.random() * 8 - 4, Math.random() * 8 - 4);
+  held = null; Haptics.tap(10);
+}
 
-// ------------------------------------------------------------------ input on the terrace
-// Real lighting: a quick tap places the cracker, then press and drag to hold the
-// lighter (agarbatti, candle or phuljhadi) to its fuse. Quick mode: a tap lights at once.
-const lighter = new Lighter();
-const grabs = new Map(); // pointerId -> sparkler visual
-const press = new Map(); // pointerId -> lighter press
-let lastMove = performance.now(), toldLighter = false;
-stageEl.addEventListener('pointerdown', async (e) => {
-  if (!$('#welcome').hidden) return;
-  const x = e.clientX, y = e.clientY, id = e.pointerId;
+// ------------------------------------------------------------------ what you are looking at
+let target = null;
+function findTarget() {
+  const cam = world.camera, o = cam.position, d = player.forward(tmp);
+  let best = null, bt = Infinity;
+  const test = (p, r, reach, t) => {
+    const v = tmp2.copy(p).sub(o), along = v.dot(d);
+    if (along < 0.1 || along > reach) return;
+    const perp = v.addScaledVector(d, -along).length();
+    if (perp < r && along < bt) { bt = along; best = t; }
+  };
+  for (const c of actives) {
+    if (c.done || c.lit || c.body.held || c.spent) continue;
+    test(c.fuseTip(tmp2.clone()), c.radius + 0.25, 4.2, { kind: 'cracker', c });
+    test(c.g.position, c.radius + 0.2, 4.2, { kind: 'cracker', c });
+  }
+  if (held?.kind === 'cracker' && !held.c.lit) best = { kind: 'cracker', c: held.c };
+  for (const b of world.bodies) if (b.kind === 'prop' && !b.held) test(b.p, b.r + 0.2, 3, { kind: 'prop', b });
+  for (const dd of world.diyas) if (!dd.lit) test(dd.flame, 0.22, 3, { kind: 'diya', d: dd });
+  return best;
+}
+/** The action button's job right now: { id, label, enabled }. */
+function currentAction() {
+  const m = settings.mode, def = byId[settings.sel];
+  if (lighting) return { id: 'wait', label: 'Lighting…', on: false };
+  if (held?.kind === 'prop') return { id: 'throw', label: 'Throw', on: true };
+  if (target?.kind === 'cracker') {
+    if (m === 'pick' && !target.c.body.held) return { id: 'pickc', label: 'Pick up', on: true };
+    return { id: 'light', label: 'Light', on: true };
+  }
+  if (target?.kind === 'diya') return { id: 'diya', label: 'Light diya', on: true };
+  if (m === 'pick') return target?.kind === 'prop' ? { id: 'pickp', label: 'Pick up', on: true } : { id: 'none', label: 'Pick', on: false };
+  if (m === 'hold') return held?.kind === 'cracker' && held.c.lit ? { id: 'drop', label: 'Drop', on: true } : { id: 'hold', label: 'Hold', on: def.kind === 'phuljhadi' };
+  return { id: 'place', label: 'Place', on: true };
+}
+let lastAct = '';
+function updateHud() {
+  target = findTarget();
+  const a = currentAction(), key = a.id + a.label + a.on;
+  if (key !== lastAct) {
+    lastAct = key;
+    const b = $('#btnAct');
+    b.querySelector('b').textContent = a.label; b.setAttribute('aria-label', a.label);
+    b.classList.toggle('off', !a.on); b.classList.toggle('fire', a.id === 'light' || a.id === 'diya');
+  }
+  const el = $('#target');
+  const txt = target?.kind === 'cracker' ? `${target.c.name}${target.c.def.variant ? ' · ' + (byId[target.c.def.base]?.variants?.find((x) => x.id === target.c.def.variant)?.name || '') : ''}`
+    : target?.kind === 'prop' ? ({ ball: 'Football', bucket: 'Water bucket', can: 'Can', box: 'Cardboard box', matka: 'Matka' }[target.b.type] || 'Prop')
+      : target?.kind === 'diya' ? 'Diya (out)' : '';
+  if (el.textContent !== txt) el.textContent = txt;
+  el.hidden = !txt;
+  $('#cross').classList.toggle('on', !!target);
+}
+function act() {
   Audio.unlock();
-  autoTorch();
-  const di = scene.diyaAt(x, y), def0 = byId[settings.sel];
-  // with real lighting, a diya is toggled on release (a tap), so a lighter drag may start on one
-  if (di >= 0 && (!settings.realLight || def0.kind === 'phuljhadi')) { toggleDiya(di); return; }
-  // pick up a sparkler that's already burning
-  const u = scene.u;
-  for (const v of actives) {
-    if (v.def.kind !== 'phuljhadi' || v.lit === false || v.t > v.p.end) continue;
-    const tp = v.tip();
-    if (Math.hypot(v.hx - x, v.hy - y) < 46 * u || Math.hypot(tp.x - x, tp.y - y) < 40 * u) {
-      v.held = true; grabs.set(id, v); stageEl.setPointerCapture(id); return;
-    }
-  }
-  const def = byId[settings.sel];
-  if (def.kind === 'phuljhadi') {
-    // sparkler: follows the finger; the pointer may move while its sound renders
-    const pend = { pending: true, x, y, up: false };
-    grabs.set(id, pend); stageEl.setPointerCapture(id);
-    const vis = await light(def, x, y);
-    if (vis) vis.moveTo(pend.x, pend.y, 0);
-    if (vis && !pend.up) { vis.held = true; grabs.set(id, vis); } else grabs.delete(id);
-    return;
-  }
-  if (!settings.realLight) { light(def, x, y); return; }
-  press.set(id, { x0: x, y0: y, t0: performance.now(), moved: false, lit: false, diya: di });
-  lighter.x = x; lighter.y = y; lighter.pid = id; lighter.active = true;
-  stageEl.setPointerCapture(id);
+  const a = currentAction();
+  if (!a.on) { if (a.id === 'hold') hold(); else if (a.id === 'none') toast('Look at a ball, can or bucket to pick it up'); return; }
+  if (a.id === 'place') place();
+  else if (a.id === 'hold') hold();
+  else if (a.id === 'light') startLighting(target);
+  else if (a.id === 'diya') startLighting(target);
+  else if (a.id === 'throw') throwHeld();
+  else if (a.id === 'drop') { const c = held.c; c.g.removeFromParent(); world.scene.add(c.g); c.g.position.copy(world.aimGround(1.2)); c.g.rotation.set(0, player.yaw, 0); c.plant(); c.body.held = false; held = null; }
+  else if (a.id === 'pickc') { target.c.remove(); actives = actives.filter((x) => x !== target.c); toast('Back in the box'); Haptics.tap(6); }
+  else if (a.id === 'pickp') { dropHeld(); held = { kind: 'prop', b: target.b }; target.b.held = true; Haptics.tap(6); }
+}
+$('#btnAct').addEventListener('pointerdown', (e) => { e.preventDefault(); act(); });
+function setMode(m) {
+  settings.mode = m; save(); Audio.tick();
+  document.querySelectorAll('#modes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+  if (m !== 'pick' && held?.kind === 'prop') dropHeld();
+  lastAct = '';
+}
+document.querySelectorAll('#modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.m)));
+
+// ------------------------------------------------------------------ lighter and flashlight
+function setLighter(on) {
+  lighter.show(on);
+  $('#btnLighter').setAttribute('aria-pressed', String(on));
+  if (!on) lighting = null;
+}
+$('#btnLighter').addEventListener('click', () => { Audio.unlock(); Audio.tick(); setLighter(!lighter.out); if (lighter.out) toast(`${LIGHTERS[lighter.kind].name} · ${LIGHTERS[lighter.kind].hi}. Aim at a fuse and press Light.`); });
+function setFlashlight(on) {
+  torchOn = on;
+  world.flashlight.intensity = on ? 40 : 0;
+  $('#btnTorch').setAttribute('aria-pressed', String(on));
+}
+$('#btnTorch').addEventListener('click', () => { Audio.unlock(); Audio.tick(); setFlashlight(!torchOn); });
+
+// ------------------------------------------------------------------ touch controls
+// Left side: a floating joystick to walk. Right side (and mouse anywhere): drag to look.
+const touchEl = $('#touch'), joyEl = $('#joy'), knob = joyEl.querySelector('i');
+let joy = null, lookP = null;
+const JR = 52;
+touchEl.addEventListener('pointerdown', (e) => {
+  Audio.unlock();
+  if (!playing) return;
+  if (e.pointerType !== 'mouse' && e.clientX < window.innerWidth * 0.42 && !joy) {
+    joy = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.hidden = false; knob.style.transform = '';
+  } else if (!lookP) lookP = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  touchEl.setPointerCapture(e.pointerId);
 });
-stageEl.addEventListener('pointermove', (e) => {
-  const pr = press.get(e.pointerId);
-  if (pr) {
-    lighter.x = e.clientX; lighter.y = e.clientY;
-    if (Math.hypot(e.clientX - pr.x0, e.clientY - pr.y0) > 10) pr.moved = true;
-    return;
+touchEl.addEventListener('pointermove', (e) => {
+  if (joy && e.pointerId === joy.id) {
+    let dx = e.clientX - joy.x, dy = e.clientY - joy.y;
+    const m = Math.hypot(dx, dy);
+    if (m > JR) { dx *= JR / m; dy *= JR / m; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    player.move.x = dx / JR; player.move.y = -dy / JR;
+    player.run = m > JR * 1.6;
+  } else if (lookP && e.pointerId === lookP.id) {
+    const k = 0.0042 * settings.look * (e.pointerType === 'mouse' ? 0.8 : 1);
+    player.look((e.clientX - lookP.x) * k, (e.clientY - lookP.y) * k * (settings.invert ? -1 : 1));
+    lookP.x = e.clientX; lookP.y = e.clientY;
   }
-  const g = grabs.get(e.pointerId);
-  if (!g) return;
-  const now = performance.now(), dt = Math.max(0.001, (now - lastMove) / 1000); lastMove = now;
-  if (g.pending) { g.x = e.clientX; g.y = e.clientY; } else g.moveTo(e.clientX, e.clientY, dt);
 });
-const release = (e) => {
-  const pr = press.get(e.pointerId);
-  if (pr) {
-    press.delete(e.pointerId);
-    if (lighter.pid === e.pointerId) lighter.active = false;
-    if (!pr.moved && !pr.lit && performance.now() - pr.t0 < 350 && e.type === 'pointerup') { if (pr.diya >= 0) toggleDiya(pr.diya); else place(pr.x0, pr.y0); }
-    return;
-  }
-  const g = grabs.get(e.pointerId);
-  if (!g) return;
-  if (g.pending) g.up = true; else { g.held = false; grabs.delete(e.pointerId); }
+const endTouch = (e) => {
+  if (joy && e.pointerId === joy.id) { joy = null; joyEl.hidden = true; player.move.x = player.move.y = 0; player.run = false; }
+  if (lookP && e.pointerId === lookP.id) lookP = null;
 };
-stageEl.addEventListener('pointerup', release);
-stageEl.addEventListener('pointercancel', release);
-
-function toggleDiya(i) {
-  const d = scene.diyas[i];
-  if (d.lit) { d.lit = false; d.out = performance.now(); } else { d.lit = true; Audio.strike(); }
-  Haptics.tap(8);
-}
-
-/** Real lighting: set the selected cracker down, unlit. */
-async function place(x, y) {
-  const spot = scene.ground(x, y), u = scene.u;
-  if (actives.some((v) => v.lit === false && Math.hypot(v.x - spot.x, v.y - spot.y) < 26 * u)) {
-    toast(`Press and drag to hold the ${LIGHTERS[lighter.kind].name.toLowerCase()} to its fuse`); return;
-  }
-  const vis = await light(byId[settings.sel], x, y, { unlit: true });
-  if (vis) { Haptics.tap(6); if (!toldLighter) { toldLighter = true; hint(`Now press and drag the ${LIGHTERS[lighter.kind].name.toLowerCase()} to the fuse`, true); } }
-}
-
-/** While the lighter is held, any fuse it touches for long enough catches fire. */
-function touchFuses(now, dt) {
-  const pr = press.get(lighter.pid);
-  lighter.shown = !!(lighter.active && pr && (pr.moved || now - pr.t0 > 150));
-  if (!lighter.shown) return;
-  const u = scene.u, tp = lighter.tip(u);
-  for (const v of actives) {
-    if (v.lit !== false) continue;
-    const fp = v.fusePoint();
-    if (Math.hypot(fp.x - tp.x, fp.y - tp.y) < 16 * u) {
-      v.touch = (v.touch || 0) + dt;
-      for (let i = 0; i < 2; i++) sparks.add({ x: fp.x, y: fp.y, vx: (Math.random() - 0.5) * 80 * u, vy: -Math.random() * 80 * u, life: 0.15, colour: '#ffd27a', size: 1.2 * u, drag: 2, grav: 100 * u });
-      if (v.touch >= lighter.catchTime) { ignite(v); pr.lit = true; Haptics.tap(10); }
-    } else v.touch = 0;
-  }
-}
+touchEl.addEventListener('pointerup', endTouch);
+touchEl.addEventListener('pointercancel', endTouch);
 
 // ------------------------------------------------------------------ the loop
-let last = performance.now(), blowAcc = 0, lastBlow = 0, allOutTold = false;
-let nextAmbient = performance.now() + 4000;
+let last = performance.now(), blowAcc = 0, lastBlow = 0, allOutTold = false, wind = 0, nextAmbient = performance.now() + 5000, orbit = 0;
+let fpsN = 0, fpsT = 0;
 function frame(now) {
+  requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (document.hidden) return;
+  const paused = sheetOpen();
+  if (playing && !paused) player.update(dt);
+  else if (!playing) { // menu backdrop: a slow look around the map
+    orbit += dt * 0.06;
+    const s = world.b.spawn;
+    player.pos.set(s.x, 0, s.z); player.yaw = (s.yaw || 0) + Math.sin(orbit) * 0.7; player.pitch = 0.12 + Math.sin(orbit * 0.7) * 0.06; player.apply();
+  }
   if (Mic.on) {
-    // our own crackers reach the mic through the speaker: discount them
     const echo = Audio.outLevel(), b = Math.max(0, Mic.blow(dt) - (echo > 0.01 ? echo * 6 : 0));
-    scene.wind = scene.wind * 0.6 + b * 0.4;
+    wind = wind * 0.6 + b * 0.4;
     $('#micLevel').style.width = Math.round(b * 100) + '%';
     $('#micPill').classList.toggle('hot', b > 0);
-    // any breath counts; a harder blow puts the diyas out faster
     if (b > 0) blowAcc += dt * (0.7 + b * 2); else blowAcc = Math.max(0, blowAcc - dt * 2);
-    if (blowAcc > 0.1 && now - lastBlow > 230 - 170 * b && scene.blowOne()) { lastBlow = now; Haptics.tap(6); }
-    if (!scene.litCount && !allOutTold) { allOutTold = true; toast('All diyas are out. Tap them to light them again.'); }
-    if (scene.litCount) allOutTold = false;
-  } else scene.wind *= 0.9;
-
-  touchFuses(now, dt);
-  for (const v of actives) if (v.lit !== false) v.update(dt);
-  actives = actives.filter((v) => !v.done);
-  scene.beginFrame(now);
-  scene.drawFloorMarks(dt);
-  for (const v of actives) v.draw(scene.pc);
-  scene.drawDebris(dt);
-  lighter.draw(scene.pc, now, scene.u, st, lighter.shown);
-  sparks.update(dt);
-  sparks.draw(dt);
+    if (blowAcc > 0.1 && now - lastBlow > 230 - 170 * b && world.blowOut(player.pos.clone().setY(0.5), 7)) { lastBlow = now; Haptics.tap(6); }
+    if (!world.litDiyas && !allOutTold) { allOutTold = true; toast('All diyas are out. Look at one and press Light to light it again.'); }
+    if (world.litDiyas) allOutTold = false;
+  } else wind *= 0.9;
+  for (const c of actives) c.update(dt, now);
+  actives = actives.filter((c) => !c.done || c.spent);
+  const shells = actives.filter((c) => c.spent);
+  if (shells.length > 10) { shells[0].remove(); actives = actives.filter((c) => c !== shells[0]); }
+  if (held?.kind === 'cracker' && held.c.done) held = null;
+  if (held?.kind === 'prop') {
+    const f = player.forward(tmp), b = held.b;
+    b.p.set(player.pos.x + f.x * 0.75, Math.max(b.r, 1.15 + f.y * 0.5), player.pos.z + f.z * 0.75);
+  }
+  stepLighting(dt);
+  lighter.update(dt, world.time);
+  world.update(dt, playing ? player : null, wind);
+  for (const c of actives) if (c.sound && !c.spent) placeSound(c);
+  if (playing) updateHud();
   if (settings.ambient && Audio.ctx && now > nextAmbient) { nextAmbient = now + 5000 + Math.random() * 9000; ambient(); }
-  requestAnimationFrame(frame);
+  world.render();
+  if (settings.fps) { fpsN++; if (now - fpsT > 500) { $('#fps').textContent = Math.round((fpsN * 1000) / (now - fpsT)) + ' fps'; fpsN = 0; fpsT = now; } }
 }
 
 /** A neighbour's rocket bursts far away over the rooftops; its bang arrives later. */
 async function ambient() {
-  if (document.hidden || actives.length > 3) return;
+  if (document.hidden || actives.filter((c) => c.lit && !c.done).length > 3) return;
   const v = await Audio.variant(DISTANT, { fresh: true });
-  const x = scene.w * (0.08 + Math.random() * 0.84), y = scene.horizon * (0.35 + Math.random() * 0.4);
+  const a = Math.random() * Math.PI * 2, r = 70 + Math.random() * 50;
+  const pos = new THREE.Vector3(Math.cos(a) * r, 30 + Math.random() * 30, Math.sin(a) * r);
   const colours = Object.keys(PALETTES).filter((c) => c !== 'saffron');
-  const b = { ...v.plan, colour: v.plan.type === 'willow' || v.plan.type === 'crackle' ? 'gold' : colours[Math.floor(Math.random() * colours.length)] };
-  burst(st, x, y, b, { scale: 0.36, alpha: 0.5 });
-  ambientTimers.push(setTimeout(() => ambientSounds.push(Audio.play(v.buffer, { pan: (x / scene.w - 0.5) * 1.4, gain: 0.3 })), v.plan.delay * 1000));
+  const colour = v.plan.type === 'willow' || v.plan.type === 'crackle' ? 'gold' : colours[Math.floor(Math.random() * colours.length)];
+  world.burst(pos, { ...v.plan, colour, size: 0.6 }, PALETTES[colour], null, 1.7);
+  const right = player.right(tmp), dx = pos.x - player.pos.x, dz = pos.z - player.pos.z, len = Math.hypot(dx, dz);
+  ambientTimers.push(setTimeout(() => ambientSounds.push(Audio.play(v.buffer, { pan: ((dx * right.x + dz * right.z) / len) * 0.9, gain: 0.3 })), v.plan.delay * 1000));
   if (ambientSounds.length > 8) ambientSounds.splice(0, 4);
 }
 let ambientTimers = [], ambientSounds = [];
 
-// ------------------------------------------------------------------ mute, clear, auto show
+// ------------------------------------------------------------------ mute and clear
 function setMuted(m) {
   settings.muted = m; save();
   Audio.setMuted(m);
@@ -303,62 +393,29 @@ function setMuted(m) {
 }
 $('#btnMute').addEventListener('click', () => { Audio.unlock(); setMuted(!settings.muted); toast(settings.muted ? 'Sound off. Vibration and lights still work.' : 'Sound on'); });
 
-/** Stop everything at once: sounds, vibration, flashlight, sparks, debris and the auto show. */
+/** Stop everything at once: sounds, vibration, flashlight, sparks and every cracker. */
 function clearAll() {
-  stopShow();
-  for (const v of actives) v.sound?.stop(0.06);
-  actives = []; grabs.clear();
+  for (const c of actives) { c.sound?.stop(0.06); c.remove(); }
+  actives = []; lighting = null;
+  if (held?.kind === 'cracker') held = null; else dropHeld();
   torchTimers.forEach(clearTimeout); torchTimers = [];
   ambientTimers.forEach(clearTimeout); ambientTimers = [];
   ambientSounds.forEach((h) => h.stop(0.06)); ambientSounds = [];
   nextAmbient = performance.now() + 8000;
-  Haptics.stop(); sparks.clear(); scene.clearMarks();
-  flashesEl.innerHTML = ''; liveFlashes = 0;
+  Haptics.stop(); world.clearFx();
 }
 $('#btnClear').addEventListener('click', () => { clearAll(); toast('All clear'); });
-
-let show = null;
-const SHOW_WEIGHT = { rocket: 4, skyshot: 2, anar: 2, chakri: 2, ladi: 1, bomb: 1 };
-function startShow() {
-  Audio.unlock();
-  const pool = CRACKERS.filter((c) => SHOW_WEIGHT[c.kind] && !Store.locked(c.id));
-  const total = pool.reduce((a, c) => a + SHOW_WEIGHT[c.kind], 0);
-  const pick = () => { let r = Math.random() * total; for (const c of pool) if ((r -= SHOW_WEIGHT[c.kind]) <= 0) return c; return pool[0]; };
-  const t0 = performance.now(), DUR = 45000;
-  show = { timers: [] };
-  const spot = () => [scene.w * (0.12 + Math.random() * 0.76), scene.placeTop + Math.random() * (scene.placeBottom - scene.placeTop)];
-  const step = () => {
-    if (!show) return;
-    if (performance.now() - t0 > DUR) { // finale: a volley of rockets
-      const rocket = byId.rocket;
-      for (let i = 0; i < 5; i++) show.timers.push(setTimeout(() => light(rocket, scene.w * (0.15 + i * 0.17), scene.placeBottom - 4, { quiet: true }), i * 260));
-      show.timers.push(setTimeout(() => { stopShow(); toast('Show over. Shubh Deepavali!'); }, 6000));
-      return;
-    }
-    light(pick(), ...spot(), { quiet: true });
-    show.timers.push(setTimeout(step, 1100 + Math.random() * 1700));
-  };
-  step();
-  $('#btnShow').setAttribute('aria-pressed', 'true');
-  toast('Auto show: sit back for 45 seconds');
-}
-function stopShow() {
-  if (!show) return;
-  show.timers.forEach(clearTimeout); show = null;
-  $('#btnShow').setAttribute('aria-pressed', 'false');
-}
-$('#btnShow').addEventListener('click', () => { if (show) { stopShow(); toast('Show stopped'); } else startShow(); });
 
 // ------------------------------------------------------------------ greeting card
 const snap = document.createElement('canvas');
 function takeSnapshot() {
   const W = 1080, H = 1350; snap.width = W; snap.height = H;
-  const c = snap.getContext('2d'), sw = scene.sky.width, sh = scene.sky.height;
+  world.render(); // read the WebGL canvas in the same task as the render
+  const src = world.renderer.domElement, sw = src.width, sh = src.height;
   const k = Math.max(W / sw, H / sh), cw = W / k, ch = H / k, sx = (sw - cw) / 2, sy = Math.max(0, (sh - ch) * 0.3);
+  const c = snap.getContext('2d');
   c.fillStyle = '#05030b'; c.fillRect(0, 0, W, H);
-  c.drawImage(scene.sky, sx, sy, cw, ch, 0, 0, W, H);
-  c.drawImage(scene.props, sx, sy, cw, ch, 0, 0, W, H);
-  c.globalCompositeOperation = 'lighter'; c.drawImage(sparks.cv, sx, sy, cw, ch, 0, 0, W, H); c.globalCompositeOperation = 'source-over';
+  c.drawImage(src, sx, sy, cw, ch, 0, 0, W, H);
 }
 const CARD_STYLES = { green: 'Green Diwali', comic: 'Comic', classic: 'Classic', rangoli: 'Rangoli', lotus: 'Lotus', diya: 'Diya', minimal: 'Minimal' };
 const CARD_MSGS = {
@@ -529,9 +586,13 @@ function renderCardStyles() {
 async function openCard() {
   Audio.unlock();
   // light up the sky first if it's quiet, so every card has fireworks
-  if (sparks.count < 250) {
-    const cols = ['violet', 'gold', 'green', 'red', 'blue'];
-    for (let i = 0; i < 3; i++) burst(st, scene.w * (0.25 + i * 0.25), scene.horizon * (0.3 + Math.random() * 0.25), { type: i === 1 ? 'willow' : 'peony', colour: cols[Math.floor(Math.random() * cols.length)], size: 0.7 });
+  if (world.sparks.n < 300) {
+    const cols = ['violet', 'gold', 'green', 'red', 'blue'], f = player.forward(new THREE.Vector3()).setY(0).normalize(), r = player.right(new THREE.Vector3());
+    for (let i = 0; i < 3; i++) {
+      const p = player.pos.clone().addScaledVector(f, 30).addScaledVector(r, (i - 1) * 14); p.y = player.pitch > 0.3 ? 30 : 16 + Math.random() * 6;
+      const col = cols[Math.floor(Math.random() * cols.length)];
+      world.burst(p, { type: i === 1 ? 'willow' : 'peony', colour: col, size: 0.75 }, PALETTES[col], null, 1.3);
+    }
     await new Promise((r) => setTimeout(r, 650));
   }
   takeSnapshot();
@@ -563,76 +624,68 @@ $('#btnCardShare').addEventListener('click', () => {
   }, 'image/png');
 });
 
-// ------------------------------------------------------------------ themes
-function setTheme(id) {
-  settings.theme = id; save(); scene.setTheme(id); Audio.tick();
-  renderThemes();
-  $('#optReal').checked = settings.realLight; $('#optShakeLight').checked = settings.shakeLight;
-}
-// Picker previews: each theme painted by a small off-screen Scene, one per idle slot.
+
+// ------------------------------------------------------------------ home: map select
 const thumbs = {};
-function themeThumb(id) {
-  if (thumbs[id]) return thumbs[id];
-  const W = 240, H = 150, sky = document.createElement('canvas'), props = document.createElement('canvas');
-  const sc = new Scene(sky, props);
-  sc.theme = id; sc.resize(W, H, 1, 14); sc.beginFrame(performance.now());
-  const out = document.createElement('canvas'); out.width = W; out.height = H;
-  const c = out.getContext('2d'); c.drawImage(sky, 0, 0, W, H); c.drawImage(props, 0, 0, W, H);
-  return (thumbs[id] = out.toDataURL('image/jpeg', 0.82));
-}
-function renderThemes() {
-  const pending = [];
-  for (const box of [$('#themes'), $('#themeStrip')]) {
-    box.innerHTML = '';
-    for (const [id, t] of Object.entries(THEMES)) {
-      const b = document.createElement('button');
-      b.className = 'theme thumb cut'; b.setAttribute('aria-pressed', String(settings.theme === id));
-      b.setAttribute('aria-label', `${t.name} background`);
-      b.innerHTML = `<i style="background:linear-gradient(${t.sky[0]},${t.sky[2]} 60%,${t.wall[0]} 62%,${t.floor[1]})"></i><b>${t.name}</b><span lang="hi">${t.hi}</span>`;
-      b.addEventListener('click', () => { setTheme(id); if (box.id === 'themeStrip' && window.innerHeight < 500) setTimeout(() => { $('#themeBar').hidden = true; renderVariants(); }, 350); });
-      box.appendChild(b);
-      pending.push([b.querySelector('i'), id]);
-    }
+function renderMaps() {
+  const box = $('#maps'); box.innerHTML = '';
+  for (const [id, m] of Object.entries(MAPS)) {
+    const b = document.createElement('button');
+    b.className = 'map cut'; b.dataset.id = id; b.setAttribute('aria-pressed', String(id === settings.map));
+    b.innerHTML = `<span class="thumb">${thumbs[id] ? `<img src="${thumbs[id]}" alt="" />` : ''}</span><b>${m.name}</b><span class="hi" lang="hi">${m.hi}</span>`;
+    b.addEventListener('click', () => pickMap(id));
+    box.appendChild(b);
   }
-  const next = () => {
-    const job = pending.shift(); if (!job) return;
-    job[0].style.backgroundImage = `url(${themeThumb(job[1])})`;
-    (thumbs[pending[0]?.[1]] ? next : () => setTimeout(next, 16))();
-  };
-  next();
 }
-$('#btnTheme').addEventListener('click', () => {
-  const bar = $('#themeBar'); bar.hidden = !bar.hidden;
-  if (!bar.hidden) { renderThemes(); bar.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }); }
-  renderVariants();
-});
-$('#themeBarClose').addEventListener('click', () => { $('#themeBar').hidden = true; renderVariants(); });
-
-// ------------------------------------------------------------------ lighter
-function setLighter(kind) {
-  settings.lighter = kind; lighter.kind = kind; save();
-  $('#btnLighter').setAttribute('aria-label', 'Lighter: ' + LIGHTERS[kind].name);
+function pickMap(id) {
+  Audio.unlock(); Audio.tick();
+  if (id !== settings.map || world.mapId !== id) { settings.map = id; save(); loadMap(id); }
+  renderMaps();
 }
-$('#btnLighter').addEventListener('click', () => {
-  const ks = Object.keys(LIGHTERS), next = ks[(ks.indexOf(settings.lighter) + 1) % ks.length];
-  setLighter(next); Audio.tick();
-  if (!settings.realLight) { settings.realLight = true; save(); }
-  toast(`Lighter: ${LIGHTERS[next].name} · ${LIGHTERS[next].hi}`);
-});
-
-// ------------------------------------------------------------------ shake to light
-let lastShake = 0;
-window.addEventListener('devicemotion', (e) => {
-  if (!settings.shakeLight || !$('#welcome').hidden) return;
-  const a = e.acceleration?.x != null ? e.acceleration : e.accelerationIncludingGravity;
-  if (!a || a.x == null) return;
-  const g = e.acceleration?.x != null ? 0 : 9.8, m = Math.abs(Math.hypot(a.x, a.y, a.z) - g), now = performance.now();
-  if (m > 16 && now - lastShake > 900) {
-    lastShake = now;
-    const def = byId[settings.sel];
-    if (def.kind !== 'phuljhadi') light(def, scene.w * (0.2 + Math.random() * 0.6), scene.placeTop + Math.random() * (scene.placeBottom - scene.placeTop));
+function loadMap(id) {
+  clearAll();
+  world.load(id);
+  player.spawn(world.b.spawn);
+}
+/** Paints a small picture of every map for the picker (once, at start). */
+function makeThumbs() {
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 180;
+  const c = cv.getContext('2d');
+  for (const id of Object.keys(MAPS)) {
+    world.load(id);
+    const s = world.b.spawn;
+    player.pos.set(s.x, 0, s.z); player.yaw = s.yaw || 0; player.pitch = 0.1; player.apply();
+    world.time = 3; world.update(0.016, null, 0);
+    world.burst(new THREE.Vector3(s.x - 6, 22, s.z - 30), { type: 'peony', size: 0.7 }, PALETTES.gold, PALETTES.violet, 1.4);
+    for (let i = 0; i < 8; i++) world.update(0.05, null, 0);
+    world.render();
+    const src = world.renderer.domElement, k = Math.max(320 / src.width, 180 / src.height);
+    c.drawImage(src, (src.width - 320 / k) / 2, (src.height - 180 / k) / 2, 320 / k, 180 / k, 0, 0, 320, 180);
+    thumbs[id] = cv.toDataURL('image/jpeg', 0.8);
   }
-});
+}
+function showHome() {
+  playing = false; setLighter(false); lighting = null; dropHeld();
+  $('#hud').hidden = true; $('#home').hidden = false; $('#rotate').hidden = true; $('#micPill').hidden = true;
+  if (Mic.on) { Mic.stop(); $('#btnDiya').setAttribute('aria-pressed', 'false'); }
+  player.move.x = player.move.y = 0; joy = null; joyEl.hidden = true;
+  renderMaps();
+}
+function startGame() {
+  Audio.unlock(); Audio.tick(); Haptics.tap(10);
+  if (world.mapId !== settings.map) loadMap(settings.map);
+  player.spawn(world.b.spawn);
+  $('#home').hidden = true; $('#hud').hidden = false; playing = true;
+  NATIVE?.setLandscape?.(true);
+  resize();
+  Store.setBanner(true);
+  if (!ls.get('played3d', false)) { ls.set('played3d', true); hint('Walk with the left stick · drag right to look · press Place', true); }
+  else hint('Look at the ground and press Place', true);
+}
+$('#btnStart').addEventListener('click', startGame);
+$('#btnMenu').addEventListener('click', () => { Audio.tick(); showHome(); });
+$('#homeSettings').addEventListener('click', () => { Audio.unlock(); openSettings(); });
+$('#homeImpact').addEventListener('click', () => { renderImpact(); openSheet('#impact'); });
 
 // ------------------------------------------------------------------ green impact
 let impKey = 'tonight';
@@ -715,34 +768,14 @@ function openManual(id) {
 }
 $('#btnManPick').addEventListener('click', () => { closeSheet('#manual'); closeSheet('#box'); select(manualFor, true); });
 
-// ------------------------------------------------------------------ tray
-function renderTray() {
-  trayEl.innerHTML = '';
-  const box = document.createElement('button');
-  box.className = 'cr box-btn'; box.setAttribute('aria-label', 'Open the cracker box');
-  box.innerHTML = '<svg aria-hidden="true"><use href="#i-grid"/></svg><span class="nm">All</span><span class="hi" lang="hi">डिब्बा</span>';
-  box.addEventListener('click', () => { Audio.unlock(); renderBox(); openSheet('#box'); });
-  trayEl.appendChild(box);
-  for (const c of CRACKERS) {
-    const b = document.createElement('button');
-    b.className = 'cr'; b.dataset.id = c.id;
-    b.setAttribute('aria-label', `${c.name}: ${c.blurb}`);
-    b.innerHTML = `<svg class="art" viewBox="0 0 48 48" aria-hidden="true">${ICONS[c.id]}</svg><span class="nm">${c.name}</span><span class="hi" lang="hi">${c.hi}</span>`;
-    b.addEventListener('click', () => select(c.id, true));
-    trayEl.appendChild(b);
-  }
-  refreshTray();
-}
+// ------------------------------------------------------------------ current cracker
 function refreshTray() {
-  for (const b of trayEl.children) {
-    if (!b.dataset.id) continue;
-    const id = b.dataset.id, locked = Store.locked(id), left = Store.tempLeft('c:' + id);
-    b.setAttribute('aria-pressed', String(id === settings.sel));
-    b.classList.toggle('locked', locked);
-    b.querySelector('.lock')?.remove(); b.querySelector('.timer')?.remove();
-    if (locked) b.insertAdjacentHTML('beforeend', '<svg class="lock" aria-label="Locked"><use href="#i-lock"/></svg>');
-    else if (left && !Store.premium) b.insertAdjacentHTML('beforeend', `<span class="timer">${fmtLeft(left)}</span>`);
-  }
+  const def = byId[settings.sel];
+  $('#curArt').innerHTML = ICONS[def.id];
+  $('#curName').textContent = def.name;
+  const vd = withVariant(def);
+  $('#curVar').textContent = def.variants ? def.variants.find((x) => x.id === vd.variant)?.name || '' : def.hi;
+  $('#btnCur').classList.toggle('locked', Store.locked(def.id));
 }
 function select(id, user = false) {
   const def = byId[id];
@@ -750,22 +783,34 @@ function select(id, user = false) {
   if (Store.locked(id)) { openUnlock(def); return; }
   settings.sel = id; save();
   refreshTray();
-  renderVariants();
-  hint(def.kind === 'phuljhadi' ? 'Touch and drag to draw with the sparkler' : `Tap the terrace to light the ${def.name}`, true);
+  if (!$('#variantBar').hidden) renderVariants();
+  if (user) {
+    if (def.kind === 'phuljhadi' && settings.mode === 'place') setMode('hold');
+    if (def.kind !== 'phuljhadi' && settings.mode === 'hold') setMode('place');
+    hint(def.kind === 'phuljhadi' ? `Press Hold to take a ${def.name} in your hand` : `Look at the ground and press Place to set down the ${def.name}`, true);
+  }
+  lastAct = '';
   Audio.warm(withVariant(def));
 }
-
 function renderVariants() {
   const def = byId[settings.sel], bar = $('#variantBar');
-  if (!def?.variants || !$('#themeBar').hidden) { bar.hidden = true; return; }
+  if (!def?.variants) { bar.hidden = true; return; }
   const cur = withVariant(def).variant;
   bar.innerHTML = `<span class="vb-label">${def.name}</span>` + def.variants.map((v) => `<button data-v="${v.id}" aria-pressed="${v.id === cur}"><i style="background:${v.sw}"></i>${v.name}</button>`).join('');
   bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
     settings.variants[def.id] = b.dataset.v; save(); Audio.tick(); Haptics.tap(5);
-    renderVariants(); Audio.warm(withVariant(def));
+    renderVariants(); refreshTray(); Audio.warm(withVariant(def));
+    setTimeout(() => { bar.hidden = true; }, 250);
   }));
   bar.hidden = false;
 }
+$('#btnCur').addEventListener('click', () => {
+  Audio.unlock(); Audio.tick();
+  const def = byId[settings.sel];
+  if (!def.variants) { renderBox(); openSheet('#box'); return; }
+  if ($('#variantBar').hidden) renderVariants(); else $('#variantBar').hidden = true;
+});
+$('#btnShop').addEventListener('click', () => { Audio.unlock(); Audio.tick(); renderBox(); openSheet('#box'); });
 
 let hintTimer = 0;
 function hint(text, show = false) {
@@ -784,30 +829,56 @@ function toast(msg) {
 }
 
 // ------------------------------------------------------------------ sheets
-const sheets = ['#welcome', '#settings', '#box', '#unlock', '#impact', '#about', '#card', '#manual'];
-function openSheet(sel) { $(sel).hidden = false; }
+const sheets = ['#settings', '#box', '#unlock', '#impact', '#about', '#card', '#manual'];
+function openSheet(sel) { $(sel).hidden = false; player.move.x = player.move.y = 0; }
 function closeSheet(sel) { $(sel).hidden = true; }
+function sheetOpen() { return sheets.some((s) => !$(s).hidden); }
 document.querySelectorAll('.sheet-wrap').forEach((w) => {
-  w.addEventListener('click', (e) => { if (e.target === w && w.id !== 'welcome') w.hidden = true; });
+  w.addEventListener('click', (e) => { if (e.target === w) w.hidden = true; });
   w.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { w.hidden = true; }));
 });
-/** Android back button: close the top sheet; returns false when there is nothing to close. */
+/** Android back button: close the top sheet, then go back to the map select; false = leave the app. */
 window.artinBack = () => {
-  for (const s of sheets.slice().reverse()) if (s !== '#welcome' && !$(s).hidden) { closeSheet(s); return true; }
+  for (const s of sheets.slice().reverse()) if (!$(s).hidden) { closeSheet(s); return true; }
+  if (!$('#variantBar').hidden) { $('#variantBar').hidden = true; return true; }
+  if (playing) { showHome(); return true; }
   return false;
 };
 
 // settings
+function seg(sel, val, fn) {
+  const el = $(sel);
+  el.querySelectorAll('button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.v === val));
+    b.onclick = () => { fn(b.dataset.v); el.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); Audio.tick(); };
+  });
+}
+function setTab(name) {
+  document.querySelectorAll('#setTabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  document.querySelectorAll('#settings .tab').forEach((t) => { t.hidden = t.dataset.tab !== name; });
+}
+document.querySelectorAll('#setTabs [role=tab]').forEach((b) => b.addEventListener('click', () => { Audio.tick(); setTab(b.dataset.tab); }));
 function openSettings() {
   $('#optVol').value = settings.vol; $('#optVib').checked = settings.vib; $('#optVibK').value = settings.vibK;
   $('#optTorch').checked = Torch.active; $('#optAmbient').checked = settings.ambient; $('#optShake').checked = settings.shake;
   $('#optVib').disabled = !Haptics.supported; $('#optMic').value = settings.micSens;
-  renderThemes();
+  $('#optBob').checked = settings.bob; $('#optFps').checked = settings.fps; $('#optLook').value = settings.look; $('#optInvert').checked = settings.invert;
+  $('#optShakeLight').checked = settings.shakeLight;
+  seg('#optQuality', settings.quality, setQuality);
+  seg('#optLighter', settings.lighter, (v) => { settings.lighter = v; save(); lighter.setKind(v); });
   $('#torchNote').textContent = NATIVE ? '' : Torch.possible
     ? 'Flashlight bursts use the camera flash (Chrome on Android). Your browser will ask for camera permission. The camera image is never used.'
     : 'Flashlight bursts need a phone with a flash, in Chrome on Android, or the Patakha app.';
   renderShop();
   openSheet('#settings');
+}
+function setQuality(q) {
+  settings.quality = q; save();
+  world.setQuality(q);
+  // particle budgets and lights are set when a map loads
+  const p = player.pos.clone(), yaw = player.yaw, pitch = player.pitch;
+  loadMap(world.mapId);
+  if (playing) { player.pos.copy(p); player.yaw = yaw; player.pitch = pitch; player.apply(); }
 }
 $('#btnSettings').addEventListener('click', () => { Audio.unlock(); openSettings(); });
 $('#optVol').addEventListener('input', (e) => { settings.vol = +e.target.value; Audio.setVolume(settings.vol); save(); });
@@ -815,23 +886,22 @@ $('#optVib').addEventListener('change', (e) => { settings.vib = e.target.checked
 $('#optVibK').addEventListener('change', (e) => { settings.vibK = +e.target.value; Haptics.intensity = settings.vibK; Haptics.tap(30); save(); });
 $('#optTorch').addEventListener('change', (e) => setTorch(e.target.checked));
 $('#optAmbient').addEventListener('change', (e) => { settings.ambient = e.target.checked; save(); });
-$('#optShake').addEventListener('change', (e) => { settings.shake = e.target.checked; save(); });
-$('#optReal').addEventListener('change', (e) => { settings.realLight = e.target.checked; save(); });
+$('#optShake').addEventListener('change', (e) => { settings.shake = e.target.checked; world.shakeOn = settings.shake; save(); });
+$('#optBob').addEventListener('change', (e) => { settings.bob = e.target.checked; player.bobOn = settings.bob; save(); });
+$('#optFps').addEventListener('change', (e) => { settings.fps = e.target.checked; $('#fps').hidden = !settings.fps; save(); });
+$('#optLook').addEventListener('input', (e) => { settings.look = +e.target.value; save(); });
+$('#optInvert').addEventListener('change', (e) => { settings.invert = e.target.checked; save(); });
 $('#optShakeLight').addEventListener('change', (e) => { settings.shakeLight = e.target.checked; save(); });
 $('#optMic').addEventListener('input', (e) => { settings.micSens = +e.target.value; Mic.sensitivity = settings.micSens; save(); });
 
-// torch
+// phone flashlight bursts
 async function setTorch(on) {
   if (on) {
     try { await Torch.enable(); Torch.flash(160); settings.torch = true; } catch (err) { settings.torch = false; toast(err.message || 'Flashlight not available'); }
   } else { Torch.disable(); settings.torch = false; }
   save();
-  $('#btnTorch').setAttribute('aria-pressed', String(Torch.active));
   $('#optTorch').checked = Torch.active;
 }
-let torchTried = false;
-function autoTorch() { if (settings.torch && !Torch.active && !torchTried) { torchTried = true; setTorch(true); } }
-$('#btnTorch').addEventListener('click', () => { Audio.unlock(); setTorch(!Torch.active); });
 
 // diyas + microphone
 $('#btnDiya').addEventListener('click', async () => {
@@ -839,11 +909,21 @@ $('#btnDiya').addEventListener('click', async () => {
   if (Mic.on) { Mic.stop(); $('#micPill').hidden = true; $('#btnDiya').setAttribute('aria-pressed', 'false'); return; }
   try {
     await Mic.start(ctx);
-    if (!scene.litCount) { scene.diyas.forEach((d) => { d.lit = true; }); Audio.strike(); }
+    if (!world.litDiyas) { world.diyas.forEach((d) => { d.lit = true; }); Audio.strike(); }
     $('#micPill').hidden = false; $('#btnDiya').setAttribute('aria-pressed', 'true');
   } catch {
-    toast('Microphone unavailable. Tap a diya to put it out instead.');
+    toast('Microphone unavailable. You can still light diyas with your lighter.');
   }
+});
+
+// shake the phone to light the cracker you are looking at
+let lastShake = 0;
+window.addEventListener('devicemotion', (e) => {
+  if (!settings.shakeLight || !playing) return;
+  const a = e.acceleration?.x != null ? e.acceleration : e.accelerationIncludingGravity;
+  if (!a || a.x == null) return;
+  const g = e.acceleration?.x != null ? 0 : 9.8, m = Math.abs(Math.hypot(a.x, a.y, a.z) - g), now = performance.now();
+  if (m > 16 && now - lastShake > 900) { lastShake = now; if (target?.kind === 'cracker') startLighting(target); }
 });
 
 // ------------------------------------------------------------------ store
@@ -912,54 +992,57 @@ setInterval(refreshTray, 60e3);
 // ------------------------------------------------------------------ keyboard (desktop)
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { window.artinBack(); return; }
-  if (!$('#welcome').hidden || e.target.closest?.('input')) return;
-  if (e.key === 'm') $('#btnMute').click();
-  if (e.key === 'c') $('#btnClear').click();
+  if (e.target.closest?.('input')) return;
+  const k = e.key.toLowerCase();
+  if (!playing) { if (k === 'enter' && !sheetOpen()) startGame(); return; }
+  if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) { player.keys.add(k); e.preventDefault(); return; }
+  if (sheetOpen()) return;
+  if (k === 'm') $('#btnMute').click();
+  if (k === 'c') $('#btnClear').click();
+  if (k === 'f') $('#btnTorch').click();
+  if (k === 'l') $('#btnLighter').click();
+  if (k === 'q') { const ms = ['place', 'hold', 'pick']; setMode(ms[(ms.indexOf(settings.mode) + 1) % 3]); }
+  if (k === 'e' || k === ' ' || k === 'enter') { e.preventDefault(); if (!e.repeat) act(); }
   const n = parseInt(e.key, 10);
-  if (n >= 1 && n <= CRACKERS.length) select(CRACKERS[n - 1].id, true);
-  if (e.key === ' ' || e.key === 'Enter') {
-    e.preventDefault();
-    light(byId[settings.sel], scene.w * (0.3 + Math.random() * 0.4), (scene.placeTop + scene.placeBottom) / 2);
-  }
+  if (n >= 1 && n <= 9 && CRACKERS[n - 1]) select(CRACKERS[n - 1].id, true);
 });
+window.addEventListener('keyup', (e) => player.keys.delete(e.key.toLowerCase()));
+window.addEventListener('blur', () => player.keys.clear());
 
 // ------------------------------------------------------------------ lifecycle
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { Haptics.stop(); Audio.ctx?.suspend(); } else Audio.ctx?.resume();
+  if (document.hidden) { Haptics.stop(); Audio.ctx?.suspend(); player.keys.clear(); } else Audio.ctx?.resume();
 });
 
 async function prewarm() {
   const order = [byId[settings.sel], ...CRACKERS.filter((c) => c.free && c.id !== settings.sel)];
-  for (const d of order) { await Audio.variant(d); await new Promise((r) => setTimeout(r, 30)); }
+  for (const d of order) { await Audio.variant(withVariant(d)); await new Promise((r) => setTimeout(r, 30)); }
   await Audio.variant(DISTANT);
 }
 
 function start() {
   Haptics.enabled = settings.vib; Haptics.intensity = settings.vibK; Audio.setVolume(settings.vol);
-  Mic.sensitivity = settings.micSens; setMuted(settings.muted); setLighter(LIGHTERS[settings.lighter] ? settings.lighter : 'agarbatti');
-  if (!THEMES[settings.theme]) settings.theme = 'green';
-  scene.setTheme(settings.theme);
-  updateEcoMeter();
-  renderTray(); resize(); select(settings.sel);
+  Mic.sensitivity = settings.micSens; setMuted(settings.muted);
+  lighter.setKind(settings.lighter); player.bobOn = settings.bob; world.shakeOn = settings.shake;
+  $('#fps').hidden = !settings.fps;
+  updateEcoMeter(); refreshTray(); setMode(settings.mode);
+  makeThumbs();
+  loadMap(settings.map);
+  resize();
   requestAnimationFrame((t) => { last = t; frame(t); });
   prewarm();
   fetch('version.json').then((r) => r.json()).then((v) => { $('#verLine').textContent = `v${v.version} · build ${v.versionCode}`; }).catch(() => {});
   if (NATIVE && settings.torch) setTorch(true);
-
+  NATIVE?.setLandscape?.(true);
   const splash = $('#splash');
   setTimeout(() => {
     splash.classList.add('out');
     setTimeout(() => splash.remove(), 300);
-    if (!ls.get('welcomed', false)) openSheet('#welcome');
-    else Store.setBanner(true);
-  }, 720);
+    showHome();
+  }, 600);
 }
-$('#btnStart').addEventListener('click', () => {
-  Audio.unlock(); ls.set('welcomed', true); closeSheet('#welcome'); Store.setBanner(true);
-  hint(null, true);
-});
 
 if ('serviceWorker' in navigator && !NATIVE && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-// test hook for the automated screenshots: ?debug
-if (new URLSearchParams(location.search).has('debug')) window.__patakha = { actives: () => actives, scene, lighter };
+// test hook for automated tests: ?debug
+if (new URLSearchParams(location.search).has('debug')) window.__patakha = { world, player, lighter, actives: () => actives, act, setMode, select, startGame, target: () => target };
 start();

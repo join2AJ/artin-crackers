@@ -9,6 +9,47 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-03 · Play build 8
+### Added
+- **Patakha is now a 3D game.** Walk around a low-poly Indian neighbourhood on Diwali night in first person, set crackers down and light them yourself. Built with Three.js r170 (MIT, vendored in `js/vendor/`) and cel-shaded toon materials for the comic look.
+- **Four maps**, each with toran lights, diyas, street lamps and props:
+  - Mohalla Gali: a narrow lane of painted houses with a temple at the end.
+  - Society: apartment blocks around a courtyard with a rangoli.
+  - Village Chowk: huts around a banyan tree on its chabutra.
+  - Green Park: wind turbines, solar lamps and trees.
+- **Map select screen** with a picture of every map and a START button. The chosen map is shown live behind the menu.
+- **Controls:**
+  - a floating joystick on the left to walk, and drag on the right to look;
+  - on desktop: WASD to walk, Shift to run, drag to look; E or Space for the action, Q to change mode, F for the torch, L for the lighter.
+- **Lighter button.** An agarbatti, candle or phuljhadi (chosen in Settings → Controls) in your hand reaches out to the fuse when you press Light.
+- **Torch button:** a flashlight for dark corners.
+- **Place / Hold / Pick:**
+  - Place sets the cracker down where you look; a ladi is laid out across your view.
+  - Hold puts a phuljhadi or pencil in your hand. Holding a cracker that bursts is refused, with a safety tip.
+  - Pick picks up a football, can, bucket, box or matka to throw, or puts an unlit cracker back in the box.
+- **3D crackers with particle fireworks:**
+  - anar fountains and skidding chakris;
+  - rockets that lean away from you and burst in the sky (peony, willow, crackle, ring);
+  - ladi pops racing along the string;
+  - sutli, bijli and atom bombs with a flash, sparks, a smoke cloud, flying paper, a shock ring, a scorch mark and a blast that knocks props about;
+  - sky shot cakes, sparklers, and the saanp goli with its smoke.
+- **Fireworks light up the world:** houses and the street glow in the colour of each burst. Street-lamp lights follow you.
+- **Positional sound:** every cracker is panned and gets quieter with distance, and vibration gets weaker the farther away it is.
+- **Neighbourhood fireworks** burst over the rooftops around the map.
+- **Diyas in 3D:**
+  - blow on the mic to put out the ones near you;
+  - look at a diya that is out and press Light to light it again.
+- **Settings tabs:** Graphic (quality Low/Medium/High, screen shake, head bob, neighbourhood fireworks, FPS), Sound, Controls (look sensitivity, invert, lighter) and More (shop, safety tips, about).
+- Landscape only: the Android app locks to landscape, and the web version asks you to turn the phone sideways.
+### Changed
+- The cracker box is now the **Shop** button. The current cracker and its variant are shown next to the action button; tap it to change the variant.
+- Greeting cards and the share image are now taken from the 3D view.
+- Badge pop-ups slide in at the top so they don't hide the crosshair.
+- `dev/store.html` keeps the 2D renderer (moved to `dev/2d/`) for the icon and feature graphic. `scripts/store-graphics.mjs` now takes 1920×1080 screenshots from the 3D game.
+- Service worker cache `patakha-v8`.
+### Removed
+- The 2D stage, its background themes, the auto show and the long-exposure sparkler drawing (`js/scene.js`, `js/visuals.js` and `js/lighter.js` are no longer shipped).
+
 ## [0.7.0] — 2026-10-03 · Play build 7 · `a7177e7`
 ### Added
 - **Android app** (`android/`, app ID `com.artinstudios.crackers`, minSdk 26, target/compile SDK 36, AGP 8.13, Gradle wrapper). A native WebView wrapper bundles the web app from `assets/www` through WebViewAssetLoader, so it works fully offline.

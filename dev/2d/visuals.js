@@ -4,8 +4,8 @@
 //   draw(c)     paint the body on the props canvas
 //   static torch(plan)  flashlight bursts [{ t, ms }]
 
-import { PALETTES, sample } from './crackers.js';
-import { rng } from './synth.js';
+import { PALETTES, sample } from '../../js/crackers.js';
+import { rng } from '../../js/synth.js';
 import { INK } from './scene.js';
 
 const rnd = (a, b) => a + Math.random() * (b - a);

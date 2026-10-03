@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>Patakha — Diwali Crackers Simulator · ARTIN Studios</title>
-  <meta name="description" content="Patakha by ARTIN Studios: burst anar, chakri, rockets, ladi and sutli bombs with realistic sound, vibration and flashlight. Blow out the diyas with your breath. All the dhamaka, none of the smoke." />
+  <meta name="description" content="Patakha by ARTIN Studios: a 3D Diwali crackers game. Walk your mohalla, place anar, chakri, rockets, ladi and sutli bombs and light them with an agarbatti, with real sound, vibration and flashlight. All the dhamaka, none of the smoke." />
   <meta name="theme-color" content="#03100b" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
@@ -14,6 +14,7 @@
   <meta property="og:title" content="Patakha — Diwali Crackers Simulator" />
   <meta property="og:description" content="Anar, chakri, rockets, ladi and bombs with real sound, vibration and flashlight. Pollution-free Diwali." />
   <link rel="preload" href="fonts/ChakraPetch-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="modulepreload" href="js/vendor/three.module.min.js" />
   <link rel="stylesheet" href="css/fonts.css" />
   <link rel="stylesheet" href="css/app.css" />
 </head>
@@ -63,113 +64,149 @@
     </div>
   </div>
 
-  <!-- ============================== STAGE ============================== -->
-  <main class="stage" id="stage" aria-label="Rooftop at night. Tap the terrace to light the selected cracker.">
-    <canvas id="sky"></canvas>
-    <canvas id="props"></canvas>
-    <canvas id="fx"></canvas>
-    <div class="flashes" id="flashes"></div>
+  <!-- ============================== GAME ============================== -->
+  <main class="stage" id="stage" aria-label="Diwali night in 3D. Walk with the joystick, drag to look, place and light crackers.">
+    <canvas id="game"></canvas>
+    <div class="touch" id="touch"></div>
   </main>
 
-  <header class="hud">
-    <div class="brand">
-      <svg class="brand-mark"><use href="#mark"/></svg>
-      <div><b>PATAKHA</b><small>by ARTIN Studios</small></div>
+  <div class="game-hud" id="hud" hidden>
+    <div class="hud-tl">
+      <button class="icon-btn cut" id="btnMenu" aria-label="Menu: change map"><svg><use href="#i-grid"/></svg></button>
+      <button class="eco cut" id="btnImpact" aria-label="Your green impact: CO₂ and smoke saved">
+        <span class="ring"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="3.5"/><circle id="ecoArc" cx="18" cy="18" r="15" fill="none" stroke="#2ee59d" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="94.25"/></svg><svg class="leaf" aria-hidden="true"><use href="#i-leaf"/></svg></span>
+        <span><b id="co2Count">0 g</b><small><span id="litCount">0</span> lit · CO₂ saved</small></span>
+      </button>
     </div>
-    <button class="eco cut" id="btnImpact" aria-label="Your green impact: CO₂ and smoke saved">
-      <span class="ring"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="3.5"/><circle id="ecoArc" cx="18" cy="18" r="15" fill="none" stroke="#2ee59d" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="94.25"/></svg><svg class="leaf" aria-hidden="true"><use href="#i-leaf"/></svg></span>
-      <span><b id="co2Count">0 g</b><small><span id="litCount">0</span> lit · CO₂ saved</small></span>
-    </button>
-    <div class="hud-btns">
+    <div class="hud-tr">
       <button class="icon-btn cut" id="btnMute" aria-label="Mute all sound" aria-pressed="false"><svg><use href="#i-sound"/></svg></button>
       <button class="icon-btn cut" id="btnDiya" aria-label="Blow out the diyas (microphone)" aria-pressed="false"><svg><use href="#i-diya"/></svg></button>
+      <button class="icon-btn cut" id="btnCard" aria-label="Diwali greeting card"><svg><use href="#i-card"/></svg></button>
+      <button class="icon-btn cut" id="btnClear" aria-label="Clear: stop everything"><svg><use href="#i-clear"/></svg></button>
       <button class="icon-btn cut" id="btnSettings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
     </div>
-  </header>
 
-  <aside class="rail" aria-label="Quick actions">
-    <button class="icon-btn cut" id="btnTheme" aria-label="Background" title="Background"><svg><use href="#i-scene"/></svg></button>
-    <button class="icon-btn cut" id="btnLighter" aria-label="Lighter: agarbatti" title="Lighter"><svg><use href="#i-lighter"/></svg></button>
-    <button class="icon-btn cut" id="btnTorch" aria-label="Flashlight bursts" aria-pressed="false" title="Flashlight"><svg><use href="#i-torch"/></svg></button>
-    <button class="icon-btn cut" id="btnClear" aria-label="Clear: stop everything" title="Clear"><svg><use href="#i-clear"/></svg></button>
-    <button class="icon-btn cut" id="btnShow" aria-label="Auto show" aria-pressed="false" title="Auto show"><svg><use href="#i-show"/></svg></button>
-    <button class="icon-btn cut" id="btnCard" aria-label="Diwali greeting card" title="Greeting card"><svg><use href="#i-card"/></svg></button>
-    <button class="icon-btn cut" id="btnAbout" aria-label="About Diwali" title="About Diwali"><svg><use href="#i-book"/></svg></button>
-  </aside>
+    <div class="cross" id="cross" aria-hidden="true"><i></i></div>
+    <div class="target" id="target" hidden></div>
+
+    <div class="hud-bl">
+      <button class="round-btn" id="btnLighter" aria-label="Lighter" aria-pressed="false"><svg><use href="#i-lighter"/></svg><span>Lighter</span></button>
+      <button class="round-btn" id="btnTorch" aria-label="Flashlight" aria-pressed="false"><svg><use href="#i-torch"/></svg><span>Torch</span></button>
+    </div>
+    <div class="joy" id="joy" hidden><i></i></div>
+
+    <div class="hud-br">
+      <div class="modes" id="modes" role="radiogroup" aria-label="What the action button does">
+        <button data-m="place" aria-pressed="true">Place</button>
+        <button data-m="hold" aria-pressed="false">Hold</button>
+        <button data-m="pick" aria-pressed="false">Pick</button>
+      </div>
+      <button class="act" id="btnAct" aria-label="Place"><svg><use href="#i-play"/></svg><b>Place</b></button>
+      <div class="cur" >
+        <button class="cur-cr cut" id="btnCur" aria-label="Change the cracker"><svg class="art" viewBox="0 0 48 48" id="curArt"></svg><span><b id="curName">Anar</b><small id="curVar"></small></span></button>
+        <button class="icon-btn cut shop-btn" id="btnShop" aria-label="Cracker shop"><svg><use href="#i-grid"/></svg><span>Shop</span></button>
+      </div>
+    </div>
+    <nav class="tray" id="tray" aria-label="Crackers" hidden></nav>
+    <div class="variant-bar" id="variantBar" hidden aria-label="Cracker variants"></div>
+  </div>
 
   <div class="mic-pill cut" id="micPill" hidden>
-    <span id="micText">Blow on the mic to put out the diyas</span>
+    <span id="micText">Blow on the mic to put out the diyas near you</span>
     <i class="meter"><i id="micLevel"></i></i>
   </div>
-  <div class="hint" id="hint">Tap the terrace to light the Anar</div>
+  <div class="hint" id="hint"></div>
+  <div class="fps mono" id="fps" hidden></div>
 
-  <div class="variant-bar" id="variantBar" hidden aria-label="Cracker variants"></div>
-  <div class="theme-bar" id="themeBar" hidden>
-    <div class="themes strip" id="themeStrip"></div>
-    <button class="icon-btn sm cut" id="themeBarClose" aria-label="Close backgrounds"><svg><use href="#i-close"/></svg></button>
-  </div>
-  <nav class="tray" id="tray" aria-label="Crackers"></nav>
-
-  <!-- ============================== WELCOME ============================== -->
-  <div class="sheet-wrap" id="welcome" hidden>
-    <div class="sheet cut welcome">
-      <svg class="welcome-mark"><use href="#mark"/></svg>
-      <p class="eyebrow">Green Diwali · हरित दीपावली</p>
-      <h2>Celebrate Diwali.<br/><em>Save the air.</em></h2>
-      <p class="lead">Every cracker you light here is one real cracker that never goes up in smoke. Enjoy the full dhamaka with real sound, vibration and flashlight, watch your <b>CO₂ and smoke savings</b> grow, earn green badges and share your Green Diwali card.</p>
-      <ul class="feat">
-        <li><svg><use href="#i-lighter"/></svg><span><b>Tap the ground</b> to set a cracker down, then <b>press and drag the agarbatti</b> to its fuse.</span></li>
-        <li><svg><use href="#i-sound"/></svg><span><b>Turn the volume up</b>, ideally with headphones or a speaker.</span></li>
-                <li><svg><use href="#i-diya"/></svg><span><b>Blow on the mic</b> to put out the diyas, then tap them to light them again.</span></li>
-      </ul>
-      <button class="btn-primary cut" id="btnStart"><svg><use href="#i-play"/></svg> Light it up</button>
-      <p class="fine">A simulator for fun. No real fire, no smoke, no noise for your neighbours' pets.</p>
+  <!-- ============================== HOME: MAP SELECT ============================== -->
+  <div class="home" id="home" hidden>
+    <div class="home-in">
+      <div class="home-head">
+        <svg class="home-mark"><use href="#mark"/></svg>
+        <div><b>PATAKHA</b><small>Green Diwali · हरित दीपावली</small></div>
+        <div class="home-btns">
+          <button class="icon-btn cut" id="homeImpact" aria-label="Your green impact"><svg><use href="#i-leaf"/></svg></button>
+          <button class="icon-btn cut" id="btnAbout" aria-label="About Diwali"><svg><use href="#i-book"/></svg></button>
+          <button class="icon-btn cut" id="homeSettings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+        </div>
+      </div>
+      <h2>Select map</h2>
+      <div class="maps" id="maps"></div>
+      <div class="home-foot">
+        <p class="home-tip" id="homeTip"><svg><use href="#i-leaf"/></svg> Every cracker you light here is one real cracker that never goes up in smoke.</p>
+        <button class="btn-primary cut start" id="btnStart"><svg><use href="#i-play"/></svg> START</button>
+      </div>
     </div>
+  </div>
+
+  <div class="rotate" id="rotate" hidden>
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="20" y="8" width="24" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M8 40a24 24 0 0 0 24 18" fill="none" stroke="currentColor" stroke-width="3"/><path d="M28 54l4 4-4 4" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+    <b>Turn your phone sideways</b><span>Patakha plays in landscape.</span>
   </div>
 
   <!-- ============================== SETTINGS ============================== -->
   <div class="sheet-wrap" id="settings" hidden>
     <div class="sheet cut" role="dialog" aria-labelledby="setTitle">
       <div class="sheet-head"><h3 id="setTitle">Settings</h3><button class="icon-btn sm cut" data-close aria-label="Close"><svg><use href="#i-close"/></svg></button></div>
-      <div class="rows">
-        <label class="row"><span>Volume</span><input type="range" id="optVol" min="0" max="1" step="0.05" /></label>
-        <label class="row"><span>Vibration</span><input type="checkbox" class="sw" id="optVib" /></label>
-        <label class="row"><span>Vibration strength</span><input type="range" id="optVibK" min="0.4" max="1.6" step="0.1" /></label>
-        <label class="row"><span>Flashlight bursts</span><input type="checkbox" class="sw" id="optTorch" /></label>
-        <label class="row"><span>Neighbourhood fireworks</span><input type="checkbox" class="sw" id="optAmbient" /></label>
-        <label class="row"><span>Screen shake</span><input type="checkbox" class="sw" id="optShake" /></label>
-        <label class="row"><span>Real lighting <small>Place, then hold a lighter to the fuse</small></span><input type="checkbox" class="sw" id="optReal" /></label>
-        <label class="row"><span>Shake phone to light</span><input type="checkbox" class="sw" id="optShakeLight" /></label>
-        <label class="row"><span>Blow sensitivity</span><input type="range" id="optMic" min="0" max="1" step="0.05" /></label>
+      <div class="tabs" id="setTabs" role="tablist">
+        <button role="tab" data-tab="graphic" aria-selected="true">Graphic</button>
+        <button role="tab" data-tab="sound" aria-selected="false">Sound</button>
+        <button role="tab" data-tab="controls" aria-selected="false">Controls</button>
+        <button role="tab" data-tab="more" aria-selected="false">More</button>
       </div>
-      <h4>Background</h4>
-      <div class="themes" id="themes"></div>
-      <p class="note" id="torchNote"></p>
-
-      <section class="shop" id="shop" hidden>
-        <h4>Unlock everything</h4>
-        <div class="products" id="products"></div>
-        <div class="shop-foot"><button class="btn-ghost cut" id="btnRestore">Restore purchases</button><button class="btn-ghost cut" id="btnPrivacyOpts" hidden>Ad privacy options</button></div>
-        <p class="note" id="shopNote"></p>
-        <p class="note mono" id="adStatus" hidden></p>
-      </section>
-
-      <section class="green">
-        <h4><svg><use href="#i-leaf"/></svg> A green and safe Diwali</h4>
-        <p>If you do burst real crackers tonight:</p>
-        <ul>
-          <li>Prefer green crackers, and follow your city's rules on timings.</li>
-          <li>Keep a bucket of water or sand nearby and wear cotton clothes.</li>
-          <li>Light at arm's length, then walk away. Never relight a dud.</li>
-          <li>Keep children supervised, and think of pets, older people and patients nearby.</li>
-        </ul>
-      </section>
-
-      <div class="about">
-        <svg class="about-mark"><use href="#mark"/></svg>
-        <div>
-          <b>Patakha</b> <span class="mono" id="verLine">v0.1.0</span><br/>
-          <span class="muted">by ARTIN Studios · <a href="privacy.html" id="lnkPrivacy">Privacy</a> · <a href="mailto:artinstudios.official@gmail.com">Contact</a></span>
+      <div class="tab" data-tab="graphic">
+        <div class="rows">
+          <div class="row"><span>Quality <small>Lower it if the game feels slow</small></span><div class="seg sm" id="optQuality"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">High</button></div></div>
+          <label class="row"><span>Screen shake</span><input type="checkbox" class="sw" id="optShake" /></label>
+          <label class="row"><span>Head bob while walking</span><input type="checkbox" class="sw" id="optBob" /></label>
+          <label class="row"><span>Neighbourhood fireworks</span><input type="checkbox" class="sw" id="optAmbient" /></label>
+          <label class="row"><span>Show FPS</span><input type="checkbox" class="sw" id="optFps" /></label>
+        </div>
+      </div>
+      <div class="tab" data-tab="sound" hidden>
+        <div class="rows">
+          <label class="row"><span>Volume</span><input type="range" id="optVol" min="0" max="1" step="0.05" /></label>
+          <label class="row"><span>Vibration</span><input type="checkbox" class="sw" id="optVib" /></label>
+          <label class="row"><span>Vibration strength</span><input type="range" id="optVibK" min="0.4" max="1.6" step="0.1" /></label>
+          <label class="row"><span>Phone flashlight bursts <small>The real LED flashes with big blasts</small></span><input type="checkbox" class="sw" id="optTorch" /></label>
+          <label class="row"><span>Blow sensitivity</span><input type="range" id="optMic" min="0" max="1" step="0.05" /></label>
+        </div>
+        <p class="note" id="torchNote"></p>
+      </div>
+      <div class="tab" data-tab="controls" hidden>
+        <div class="rows">
+          <label class="row"><span>Look sensitivity</span><input type="range" id="optLook" min="0.3" max="2" step="0.05" /></label>
+          <label class="row"><span>Invert look up/down</span><input type="checkbox" class="sw" id="optInvert" /></label>
+          <div class="row"><span>Lighter</span><div class="seg sm" id="optLighter"><button data-v="agarbatti">Agarbatti</button><button data-v="candle">Candle</button><button data-v="phuljhadi">Phuljhadi</button></div></div>
+          <label class="row"><span>Shake phone to light <small>Lights the cracker you are looking at</small></span><input type="checkbox" class="sw" id="optShakeLight" /></label>
+        </div>
+        <p class="note">Desktop: <b>WASD</b> walk · drag to look · <b>Shift</b> run · <b>E</b> action · <b>Q</b> mode · <b>F</b> torch · <b>L</b> lighter · <b>1–9</b> crackers · <b>M</b> mute · <b>C</b> clear</p>
+      </div>
+      <div class="tab" data-tab="more" hidden>
+        <section class="shop" id="shop" hidden>
+          <h4>Unlock everything</h4>
+          <div class="products" id="products"></div>
+          <div class="shop-foot"><button class="btn-ghost cut" id="btnRestore">Restore purchases</button><button class="btn-ghost cut" id="btnPrivacyOpts" hidden>Ad privacy options</button></div>
+          <p class="note" id="shopNote"></p>
+          <p class="note mono" id="adStatus" hidden></p>
+        </section>
+        <section class="green">
+          <h4><svg><use href="#i-leaf"/></svg> A green and safe Diwali</h4>
+          <p>If you do burst real crackers tonight:</p>
+          <ul>
+            <li>Prefer green crackers, and follow your city's rules on timings.</li>
+            <li>Keep a bucket of water or sand nearby and wear cotton clothes.</li>
+            <li>Light at arm's length, then walk away. Never relight a dud.</li>
+            <li>Never hold a cracker that bursts, and keep children supervised.</li>
+            <li>Think of pets, older people and patients nearby.</li>
+          </ul>
+        </section>
+        <div class="about">
+          <svg class="about-mark"><use href="#mark"/></svg>
+          <div>
+            <b>Patakha</b> <span class="mono" id="verLine">v0.8.0</span><br/>
+            <span class="muted">by ARTIN Studios · <a href="privacy.html" id="lnkPrivacy">Privacy</a> · <a href="mailto:artinstudios.official@gmail.com">Contact</a></span>
+          </div>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@
 // the sky canvas; living things (diya flames, toran lights, crackers, debris)
 // are painted every frame on the props canvas.
 
-import { rng } from './synth.js';
+import { rng } from '../../js/synth.js';
 
 // Comic style: bold ink outlines and flat, hard-edged (cel) shading.
 export const INK = '#07120d';

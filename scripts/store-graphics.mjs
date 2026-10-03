@@ -1,7 +1,7 @@
 // Renders the Play Store graphics into store/ with headless Chromium (Playwright).
 //   1. start a local server:  npx http-server -p 8080 -s -c-1 .
 //   2. run:                   node scripts/store-graphics.mjs
-// Produces store/icon-512.png, store/feature-1024x500.png and store/screenshots/*.png (1080×1920 and 1920×1080).
+// Produces store/icon-512.png, store/feature-1024x500.png and store/screenshots/*.png (1920×1080, from the 3D game).
 import { execSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,7 +14,7 @@ try { pw = await import('playwright'); } catch {
 }
 const BASE = process.env.BASE || 'http://localhost:8080';
 mkdirSync('store/screenshots', { recursive: true });
-const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+let browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 
 // ---- icon + feature graphic
 {
@@ -27,50 +27,45 @@ const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-ges
   await page.close();
 }
 
-// ---- screenshots from the real app
-async function shoot(name, w, h, script) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1080 / Math.min(w, h), isMobile: true, hasTouch: true });
+// ---- screenshots from the real 3D game (1920×1080). Headless Chromium needs SwiftShader for WebGL.
+await browser.close();
+browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+async function shoot(name, map, script) {
+  const ctx = await browser.newContext({ viewport: { width: 720, height: 405 }, deviceScaleFactor: 1080 / 405, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  await page.addInitScript(() => { localStorage.setItem('patakha:welcomed', 'true'); localStorage.setItem('patakha:settings', JSON.stringify({ realLight: false })); });
-  await page.goto(`${BASE}/?storetest`);
-  await page.waitForTimeout(1200);
-  const g = await page.evaluate(() => { const r = document.querySelector('#tray').getBoundingClientRect(); return { trayTop: r.top }; });
-  const ground = (k = 0.5) => Math.round(h * (w > h ? 0.52 : 0.58) + 24 + (g.trayTop - h * (w > h ? 0.52 : 0.58) - 40) * k);
-  const light = async (id, x, y) => { await page.click(`.cr[data-id="${id}"]`); await page.mouse.click(x, y); };
-  await script({ page, light, ground, w, h });
+  await page.addInitScript((m) => { localStorage.setItem('patakha:played3d', 'true'); localStorage.setItem('patakha:settings', JSON.stringify({ map: m, quality: 'high' }));
+    // badges already earned, so no pop-up covers the shot
+    localStorage.setItem('patakha:impact', JSON.stringify({ count: 120, co2: 3200, smoke: 900, pm: 10390, loud: 40 })); }, map);
+  await page.goto(`${BASE}/?storetest&debug`);
+  await page.waitForTimeout(2500);
+  if (script) {
+    await page.evaluate(() => window.__patakha.startGame());
+    await page.waitForTimeout(300);
+    await script(page);
+  }
   await page.screenshot({ path: `store/screenshots/${name}.png` });
   await ctx.close();
 }
-
-await shoot('1-anar-rocket', 405, 720, async ({ page, light, ground, w }) => {
-  await light('rocket', w * 0.7, ground(0.3));
-  await light('anar', w * 0.3, ground(0.5));
-  await light('chakri', w * 0.55, ground(0.85));
-  await page.waitForTimeout(2350);
-});
-await shoot('2-sparkler', 405, 720, async ({ page, w, h }) => {
-  await page.click('.cr[data-id="phuljhadi"]');
-  await page.mouse.move(w * 0.5, h * 0.35); await page.mouse.down();
-  await page.waitForTimeout(500);
-  for (let i = 0; i <= 64; i++) { // a heart
-    const t = (i / 64) * Math.PI * 2, x = 16 * Math.sin(t) ** 3, y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-    await page.mouse.move(w * 0.42 + x * 7, h * 0.3 - y * 7); await page.waitForTimeout(22);
-  }
-});
-await shoot('3-bomb', 405, 720, async ({ page, light, ground, w }) => {
-  await light('ladi', w * 0.5, ground(0.8));
-  await page.waitForTimeout(400);
-  await light('bomb', w * 0.5, ground(0.35));
-  await page.evaluate(() => new Promise((r) => setTimeout(r, 1)));
-  await page.waitForTimeout(2550);
-});
-await shoot('4-skyshot-landscape', 720, 405, async ({ page, light, ground, w }) => {
-  await page.click('.cr[data-id="skyshot"]'); await page.waitForTimeout(200);
-  await page.click('#btnWatch'); await page.waitForTimeout(500);
-  await page.mouse.click(w * 0.5, ground(0.5));
-  await light('anar', w * 0.2, ground(0.5));
-  await light('rocket', w * 0.82, ground(0.5));
-  await page.waitForTimeout(4200);
-});
+/** Places and lights crackers in front of the player, then looks up by `pitch`. */
+const show = (list, pitch, wait) => async (page) => {
+  await page.evaluate(async (list) => {
+    const P = window.__patakha, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    for (const [id, yaw] of list) {
+      P.player.pitch = -0.5; P.player.yaw = yaw; P.player.apply(); P.select(id); P.setMode('place');
+      const n = P.actives().length;
+      await sleep(80); P.act();
+      for (let i = 0; i < 100 && P.actives().length === n; i++) await sleep(50); // the sound renders first
+      await sleep(100); P.act(); await sleep(1800); // slow software GL in headless runs
+    }
+    P.player.yaw = 0;
+  }, list);
+  await page.evaluate((p) => { const P = window.__patakha; P.player.pitch = p; P.player.apply(); }, pitch);
+  await page.waitForTimeout(wait);
+};
+await shoot('1-select-map', 'gali');
+await shoot('2-gali-anar', 'gali', show([['anar', 0.3], ['chakri', 0], ['anar', -0.3]], -0.1, 2600));
+await shoot('3-society-rockets', 'society', show([['rocket', 0.3], ['rocket', -0.3], ['rocket', 0]], 0.62, 2600));
+await shoot('4-village-bomb', 'village', show([['ladi', -0.15], ['bomb', 0.3]], -0.2, 3000));
+await shoot('5-green-park', 'green', show([['anar', 0.15], ['rocket', -0.15]], 0.2, 3000));
 await browser.close();
 console.log('store graphics written to store/');
