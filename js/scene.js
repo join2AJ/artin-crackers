@@ -1,4 +1,4 @@
-// The stage: an Amavasya (moonless) Diwali night: rooftops, a village, a river ghat or open sky.
+// The stage: an Amavasya (moonless) Diwali night in one of many places (see THEMES).
 // Static art (sky, skyline, terrace, rangoli) is painted once per resize on
 // the sky canvas; living things (diya flames, toran lights, crackers, debris)
 // are painted every frame on the props canvas.
@@ -10,13 +10,25 @@ const TORAN = ['#ff4b4b', '#ffd23f', '#53ff8f', '#5aa9ff', '#ff5ec4', '#ffffff']
 // Background themes. sky = 4 gradient stops top→horizon; wall = where the diyas stand.
 export const THEMES = {
   city: { name: 'Rooftop', hi: 'छत', sky: ['#04020b', '#0d0722', '#24103a', '#4a1d3c'], haze: 'rgba(255,140,60,0.22)', stars: 1,
-    wall: ['#3b2a4a', '#2a1d37', '#1a1124'], floor: ['#120b1a', '#1c1226'], tiles: true, rangoli: true },
+    wall: ['#3b2a4a', '#2a1d37', '#1a1124'], floor: ['#120b1a', '#1c1226'], ground: 'tiles', rangoli: true },
+  home: { name: 'Home', hi: 'घर-आँगन', sky: ['#04020b', '#0f0824', '#271238', '#4b2140'], haze: 'rgba(255,150,80,0.18)', stars: 1,
+    wall: ['#6a3b35', '#4d2a27', '#321b1a'], floor: ['#1a1014', '#271820'], ground: 'tiles', rangoli: true },
   village: { name: 'Village', hi: 'गाँव', sky: ['#02040d', '#06102a', '#122045', '#2d2a4c'], haze: 'rgba(255,170,90,0.12)', stars: 1.7,
-    wall: ['#6b4a30', '#4f3522', '#33231a'], floor: ['#1f150d', '#2c1e13'], tiles: false, rangoli: true },
+    wall: ['#6b4a30', '#4f3522', '#33231a'], floor: ['#1f150d', '#2c1e13'], ground: 'earth', wallStyle: 'mud', rangoli: true },
   ghat: { name: 'River Ghat', hi: 'घाट', sky: ['#030312', '#0b0b2c', '#1f1640', '#53284a'], haze: 'rgba(255,150,70,0.2)', stars: 1.2,
-    wall: ['#4a4552', '#35313d', '#24212b'], floor: ['#16141c', '#211e28'], tiles: true, rangoli: true },
+    wall: ['#4a4552', '#35313d', '#24212b'], floor: ['#16141c', '#211e28'], ground: 'tiles', rangoli: true },
+  palace: { name: 'Palace', hi: 'महल', sky: ['#03020c', '#0c0826', '#25143c', '#5a2a3c'], haze: 'rgba(255,170,90,0.22)', stars: 1.1,
+    wall: ['#e8d8c0', '#bfae96', '#8a7c6a'], floor: ['#1e1b24', '#2c2834'], ground: 'tiles', wallStyle: 'balustrade', rangoli: true },
+  snow: { name: 'Himalaya', hi: 'बर्फ़', sky: ['#01030b', '#06112a', '#14284a', '#2e4466'], haze: 'rgba(170,200,255,0.12)', stars: 1.8,
+    wall: ['#e9f0fa', '#b9c6da', '#7e8ca4'], floor: ['#2d3850', '#4a5876'], ground: 'snow', wallStyle: 'snow', weather: 'snow' },
+  desert: { name: 'Desert', hi: 'रेगिस्तान', sky: ['#02020a', '#0a0a26', '#25183a', '#5c3036'], haze: 'rgba(255,160,90,0.16)', stars: 2,
+    wall: ['#7a5638', '#5e4129', '#3f2b1b'], floor: ['#2a1d14', '#3d2b1d'], ground: 'sand', wallStyle: 'mud', weather: 'sand' },
+  army: { name: 'Border Post', hi: 'सीमा चौकी', sky: ['#020309', '#071021', '#142236', '#2c3440'], haze: 'rgba(200,190,140,0.1)', stars: 1.9,
+    wall: ['#6e6748', '#544e36', '#3a3524'], floor: ['#16150f', '#211f17'], ground: 'earth', wallStyle: 'sandbag' },
+  camp: { name: 'Camp', hi: 'कैंप', sky: ['#01020a', '#051026', '#0f1f3a', '#1f2c40'], haze: 'rgba(255,150,70,0.1)', stars: 2.2, milky: true,
+    wall: ['#5a3a22', '#432b19', '#2b1c10'], floor: ['#0b120b', '#121c11'], ground: 'grass', wallStyle: 'log' },
   open: { name: 'Open Sky', hi: 'खुला आसमान', sky: ['#000004', '#03051a', '#0b0f30', '#1d1c40'], haze: 'rgba(120,140,255,0.08)', stars: 2.4,
-    wall: ['#16201a', '#101812', '#0b120d'], floor: ['#08100b', '#0e1a12'], tiles: false, rangoli: false, milky: true },
+    wall: ['#16201a', '#101812', '#0b120d'], floor: ['#08100b', '#0e1a12'], ground: 'grass', milky: true },
 };
 
 export class Scene {
@@ -24,7 +36,7 @@ export class Scene {
     this.sky = sky; this.sc = sky.getContext('2d');
     this.props = props; this.pc = props.getContext('2d');
     this.diyas = []; this.bulbs = []; this.debris = []; this.smoke = []; this.rings = []; this.scorch = []; this.lights = [];
-    this.wind = 0; this.theme = 'city';
+    this.wind = 0; this.theme = 'city'; this.fires = []; this.kandils = []; this.flakes = []; this.beams = [];
   }
 
   resize(w, h, dpr, trayH) {
@@ -74,10 +86,17 @@ export class Scene {
     hz.addColorStop(0, 'rgba(0,0,0,0)'); hz.addColorStop(1, T.haze);
     c.fillStyle = hz; c.fillRect(0, H - 90 * u, w, 90 * u);
 
-    this.bulbs = [];
+    this.bulbs = []; this.fires = []; this.kandils = []; this.beams = [];
+    this.flakes = T.weather ? Array.from({ length: T.weather === 'snow' ? 140 : 50 }, () => ({ x: r() * w, y: T.weather === 'snow' ? r() * h : H + r() * (h - H), s: 0.6 + r() * 1.6, ph: r() * 6 })) : [];
     if (this.theme === 'village') this.torans(r, this.village(c, r, H), 0.45);
     else if (this.theme === 'ghat') this.ghat(c, r, H);
     else if (this.theme === 'open') this.hills(c, r, H);
+    else if (this.theme === 'snow') this.himalaya(c, r, H);
+    else if (this.theme === 'desert') this.desert(c, r, H);
+    else if (this.theme === 'army') this.army(c, r, H);
+    else if (this.theme === 'palace') this.palace(c, r, H);
+    else if (this.theme === 'camp') this.camp(c, r, H);
+    else if (this.theme === 'home') this.home(c, r, H);
     else {
       this.skyline(c, r, H, 0.55, '#1a0f2c', 0.18);
       this.torans(r, this.skyline(c, r, H, 1, '#0d0718', 0.65, true), 0.65);
@@ -88,18 +107,21 @@ export class Scene {
     wall.addColorStop(0, T.wall[0]); wall.addColorStop(0.12, T.wall[1]); wall.addColorStop(1, T.wall[2]);
     c.fillStyle = wall; c.fillRect(0, H, w, this.wallH);
     c.fillStyle = 'rgba(255,190,120,0.18)'; c.fillRect(0, H, w, 1.5);
-    if (this.theme === 'village') { c.fillStyle = 'rgba(0,0,0,0.18)'; for (let i = 0; i < w / (6 * u); i++) c.fillRect(r() * w, H + 3 + r() * (this.wallH - 5), (4 + r() * 10) * u, 1); }
+    this.wallDetail(c, r, T.wallStyle);
     // floor
     const fl = c.createLinearGradient(0, this.floorTop, 0, h);
     fl.addColorStop(0, T.floor[0]); fl.addColorStop(1, T.floor[1]);
     c.fillStyle = fl; c.fillRect(0, this.floorTop, w, h - this.floorTop);
-    if (T.tiles) {
+    if (T.ground === 'tiles') {
       c.strokeStyle = 'rgba(255,255,255,0.035)'; c.lineWidth = 1;
       const vx = w / 2, vy = this.floorTop - 260 * u;
       for (let i = -14; i <= 14; i++) { const bx = w / 2 + i * 70 * u; c.beginPath(); c.moveTo(vx + (bx - vx) * ((this.floorTop - vy) / (h - vy)), this.floorTop); c.lineTo(bx, h); c.stroke(); }
       for (let k = 1; k < 9; k++) { const y = this.floorTop + (h - this.floorTop) * Math.pow(k / 9, 1.6); c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
-    } else if (this.theme === 'village') {
+    } else if (T.ground === 'earth' || T.ground === 'sand') {
       for (let i = 0; i < (w * (h - this.floorTop)) / 300; i++) { c.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.25)' : 'rgba(255,220,170,0.05)'; c.fillRect(r() * w, this.floorTop + r() * (h - this.floorTop), 1.5 * u, 1.2 * u); }
+      if (T.ground === 'sand') { c.strokeStyle = 'rgba(255,210,160,0.06)'; c.lineWidth = 1; for (let k = 0; k < 14; k++) { const y0 = this.floorTop + (h - this.floorTop) * r(); c.beginPath(); for (let x = 0; x <= w; x += 10) c.lineTo(x, y0 + Math.sin(x / (40 * u) + k) * 3 * u); c.stroke(); } }
+    } else if (T.ground === 'snow') {
+      for (let i = 0; i < (w * (h - this.floorTop)) / 200; i++) { c.fillStyle = r() < 0.6 ? 'rgba(255,255,255,0.12)' : 'rgba(20,30,60,0.15)'; const y = this.floorTop + r() * (h - this.floorTop); c.beginPath(); c.ellipse(r() * w, y, (3 + r() * 9) * u, (1 + r() * 2) * u, 0, 0, Math.PI * 2); c.fill(); }
     } else {
       c.strokeStyle = 'rgba(70,120,80,0.22)'; c.lineWidth = 1;
       for (let i = 0; i < (w * (h - this.floorTop)) / 260; i++) { const x = r() * w, y = this.floorTop + r() * (h - this.floorTop), l = (2 + r() * 4) * u * this.depth(y); c.beginPath(); c.moveTo(x, y); c.lineTo(x + (r() - 0.5) * 2 * u, y - l); c.stroke(); }
@@ -237,6 +259,239 @@ export class Scene {
     for (let i = 0; i < 7; i++) { c.beginPath(); c.arc(tx + (r() - 0.5) * 40 * u, ty - (40 + r() * 16) * u, (12 + r() * 8) * u, 0, Math.PI * 2); c.fill(); }
   }
 
+  /** Texture on the front wall: mud plaster, sandbags, logs, a palace balustrade or snow. */
+  wallDetail(c, r, style) {
+    const u = this.u, w = this.w, H = this.horizon, wh = this.wallH;
+    if (style === 'mud') { c.fillStyle = 'rgba(0,0,0,0.18)'; for (let i = 0; i < w / (6 * u); i++) c.fillRect(r() * w, H + 3 + r() * (wh - 5), (4 + r() * 10) * u, 1); }
+    else if (style === 'sandbag') {
+      for (let row = 0; row < 2; row++) for (let x = row ? -9 * u : 0; x < w; x += 18 * u) {
+        const y = H + 2 * u + row * wh * 0.48;
+        c.fillStyle = row ? '#5c5639' : '#77704f'; c.beginPath(); c.ellipse(x + 9 * u, y + wh * 0.22, 8.6 * u, wh * 0.24, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(0,0,0,0.2)'; c.fillRect(x + 8.6 * u, y + wh * 0.05, 0.8 * u, wh * 0.34);
+      }
+    } else if (style === 'log') {
+      for (let k = 0; k < 2; k++) { c.fillStyle = k ? '#3f2814' : '#5a3a20'; c.fillRect(0, H + k * wh * 0.5, w, wh * 0.46); c.fillStyle = 'rgba(255,220,180,0.08)'; c.fillRect(0, H + k * wh * 0.5 + 1, w, 1); }
+      c.fillStyle = '#2b1a0c'; for (let x = 20 * u; x < w; x += 70 * u) c.fillRect(x, H - 4 * u, 4 * u, wh + 4 * u);
+    } else if (style === 'balustrade') {
+      c.fillStyle = 'rgba(80,60,40,0.45)';
+      for (let x = 3 * u; x < w; x += 9 * u) { c.beginPath(); c.ellipse(x + 2.5 * u, H + wh * 0.55, 2.2 * u, wh * 0.32, 0, 0, Math.PI * 2); c.fill(); }
+      c.fillStyle = '#f3e6d0'; c.fillRect(0, H, w, 2.5 * u); c.fillRect(0, H + wh - 2 * u, w, 2 * u);
+    } else if (style === 'snow') {
+      c.fillStyle = '#f5f9ff';
+      c.beginPath(); c.moveTo(0, H + 2 * u); for (let x = 0; x <= w + 6; x += 6) c.lineTo(x, H - (1.5 + Math.sin(x / (13 * u)) * 1.2 + r() * 0.8) * u); c.lineTo(w, H + 2 * u); c.fill();
+    }
+  }
+
+  pines(c, r, base, n, h0, h1, col, snowy = false) {
+    const u = this.u;
+    for (let i = 0; i < n; i++) {
+      const x = r() * this.w, th = (h0 + r() * (h1 - h0)) * u, tw = th * 0.42;
+      c.fillStyle = col;
+      for (let k = 0; k < 3; k++) { const y = base - th * (0.25 + k * 0.28); c.beginPath(); c.moveTo(x - tw * (1 - k * 0.25), y + th * 0.3); c.lineTo(x, y - th * 0.18); c.lineTo(x + tw * (1 - k * 0.25), y + th * 0.3); c.fill(); }
+      c.fillRect(x - 1.5 * u, base - th * 0.12, 3 * u, th * 0.12);
+      if (snowy) { c.fillStyle = 'rgba(235,242,255,0.75)'; for (let k = 0; k < 3; k++) { const y = base - th * (0.25 + k * 0.28); c.beginPath(); c.moveTo(x - tw * 0.3 * (1 - k * 0.25), y + th * 0.06); c.lineTo(x, y - th * 0.18); c.lineTo(x + tw * 0.3 * (1 - k * 0.25), y + th * 0.06); c.fill(); } }
+    }
+  }
+  tent(c, x, base, tw, th, col, glow) {
+    c.fillStyle = col; c.beginPath(); c.moveTo(x - tw / 2, base); c.lineTo(x, base - th); c.lineTo(x + tw / 2, base); c.fill();
+    if (glow) { c.fillStyle = glow; c.beginPath(); c.moveTo(x - tw * 0.12, base); c.lineTo(x, base - th * 0.55); c.lineTo(x + tw * 0.12, base); c.fill(); }
+  }
+  windowsIn(c, r, x, y, bw, bh, density, near = true) {
+    const u = this.u;
+    c.save();
+    for (let wy = y + 6 * u; wy < y + bh - 6 * u; wy += 11 * u) for (let wx = x + 4 * u; wx < x + bw - 8 * u; wx += 9 * u) {
+      if (r() > density) continue;
+      c.fillStyle = r() < 0.75 ? '#ffc56b' : '#ffe2a8'; c.globalAlpha = (near ? 0.55 : 0.25) + r() * 0.35; c.fillRect(wx, wy, 4 * u, 5 * u);
+    }
+    c.restore();
+  }
+  mountains(c, r, base, peaks, hMin, hMax, col, snowcap) {
+    const u = this.u, w = this.w;
+    for (let i = 0; i < peaks; i++) {
+      const cx = (w / peaks) * (i + 0.5) + (r() - 0.5) * 60 * u, ph = (hMin + r() * (hMax - hMin)) * u, pw = ph * (1.1 + r() * 0.6);
+      c.fillStyle = col; c.beginPath(); c.moveTo(cx - pw, base); c.lineTo(cx - pw * 0.15, base - ph * 0.92); c.lineTo(cx, base - ph); c.lineTo(cx + pw * 0.2, base - ph * 0.9); c.lineTo(cx + pw, base); c.fill();
+      if (snowcap) { c.fillStyle = snowcap; c.beginPath(); c.moveTo(cx - pw * 0.32, base - ph * 0.68); c.lineTo(cx - pw * 0.15, base - ph * 0.92); c.lineTo(cx, base - ph); c.lineTo(cx + pw * 0.2, base - ph * 0.9); c.lineTo(cx + pw * 0.36, base - ph * 0.66); c.lineTo(cx + pw * 0.12, base - ph * 0.74); c.lineTo(cx - pw * 0.05, base - ph * 0.64); c.fill(); }
+    }
+  }
+
+  /** Himalaya: snow peaks, snowy pines and a wooden chalet with lights on its eaves. */
+  himalaya(c, r, H) {
+    const u = this.u, w = this.w;
+    this.mountains(c, r, H, Math.max(3, Math.round(w / (160 * u))), 90, 150, '#1a2742', 'rgba(220,232,255,0.55)');
+    this.mountains(c, r, H, Math.max(2, Math.round(w / (240 * u))), 50, 80, '#111b30', 'rgba(220,232,255,0.4)');
+    this.pines(c, r, H, Math.round(w / (40 * u)), 30, 60, '#0a1222', true);
+    const cx = w * (0.55 + r() * 0.25), cw = 70 * u, ch = 26 * u;
+    c.fillStyle = '#20140c'; c.fillRect(cx, H - ch, cw, ch);
+    c.fillStyle = '#e9f0fa'; c.beginPath(); c.moveTo(cx - 8 * u, H - ch); c.lineTo(cx + cw / 2, H - ch - 24 * u); c.lineTo(cx + cw + 8 * u, H - ch); c.fill();
+    c.fillStyle = '#ffc56b'; c.globalAlpha = 0.8; c.fillRect(cx + 10 * u, H - ch + 8 * u, 9 * u, 8 * u); c.fillRect(cx + cw - 19 * u, H - ch + 8 * u, 9 * u, 8 * u); c.globalAlpha = 1;
+    for (let k = 0; k <= 14; k++) { const t = k / 14; this.bulbs.push({ x: cx - 8 * u + (cw + 16 * u) * t, y: H - ch - 24 * u * (1 - Math.abs(t - 0.5) * 2) + 2 * u, c: k % TORAN.length, ph: 0 }); }
+  }
+
+  /** Thar desert: dunes, a fort on the ridge and a camp of lit tents. */
+  desert(c, r, H) {
+    const u = this.u, w = this.w;
+    const dune = (amp, base, f, ph, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(0, H); for (let x = 0; x <= w + 8; x += 6) c.lineTo(x, H - (base + amp * Math.sin(x / (f * u) + ph) + amp * 0.4 * Math.sin(x / (f * 0.37 * u))) * u); c.lineTo(w, H); c.fill(); };
+    dune(14, 50, 120, 0.7, '#2a1c2a');
+    // fort with chhatris on the far dune
+    const fx = w * (0.15 + r() * 0.2), fw = 120 * u, fb = H - 52 * u;
+    c.fillStyle = '#1b1220';
+    c.fillRect(fx, fb - 30 * u, fw, 32 * u);
+    for (let i = 0; i < 4; i++) { const tx = fx + (fw / 3) * i; c.fillRect(tx - 6 * u, fb - 42 * u, 12 * u, 44 * u); c.beginPath(); c.arc(tx, fb - 42 * u, 7 * u, Math.PI, 0); c.fill(); c.fillRect(tx - 0.6 * u, fb - 54 * u, 1.2 * u, 6 * u); }
+    for (let i = 0; i <= 16; i++) this.bulbs.push({ x: fx + (fw * i) / 16, y: fb - 30 * u, c: 1, ph: i });
+    dune(10, 22, 80, 2.1, '#1f1416');
+    // camels
+    const camel = (x, y, s) => {
+      c.fillStyle = '#120b0e'; c.save(); c.translate(x, y); c.scale(s * u, s * u);
+      c.beginPath(); c.moveTo(-12, -10); c.quadraticCurveTo(-6, -22, 0, -12); c.quadraticCurveTo(5, -20, 10, -11); c.lineTo(14, -16); c.lineTo(16, -24); c.lineTo(20, -24); c.lineTo(18, -14); c.lineTo(12, -6); c.lineTo(-12, -6); c.fill();
+      for (const lx of [-10, -5, 5, 10]) c.fillRect(lx, -7, 1.6, 10);
+      c.restore();
+    };
+    camel(w * 0.62, H - 18 * u, 1.1); camel(w * 0.7, H - 16 * u, 0.95);
+    for (let i = 0; i < 3; i++) this.tent(c, w * (0.82 + i * 0.07), H - 2, 30 * u, 24 * u, '#2d1a14', 'rgba(255,170,80,0.8)');
+  }
+
+  /** Border post: a watchtower with searchlight, barracks, tents and the tricolour. */
+  army(c, r, H) {
+    const u = this.u, w = this.w;
+    this.mountains(c, r, H, Math.max(3, Math.round(w / (180 * u))), 50, 90, '#141c28', 'rgba(210,220,240,0.25)');
+    // barracks
+    const bx = w * 0.08, bw = Math.min(w * 0.42, 260 * u), bh = 22 * u;
+    c.fillStyle = '#0d120d'; c.fillRect(bx, H - bh, bw, bh);
+    c.beginPath(); c.moveTo(bx - 4 * u, H - bh); c.lineTo(bx + bw / 2, H - bh - 10 * u); c.lineTo(bx + bw + 4 * u, H - bh); c.fill();
+    this.windowsIn(c, r, bx, H - bh, bw, bh, 0.5);
+    for (let k = 0; k <= 26; k++) { const t = k / 26; this.bulbs.push({ x: bx + bw * t, y: H - bh - 10 * u * (1 - Math.abs(t - 0.5) * 2) - 1, c: k % TORAN.length, ph: 0 }); }
+    // tents
+    for (let i = 0; i < 3; i++) this.tent(c, bx + bw + (30 + i * 34) * u, H, 30 * u, 20 * u, '#1d2a18', i === 1 ? 'rgba(255,190,100,0.7)' : null);
+    // watchtower
+    const tx = w * 0.82, th = 95 * u;
+    c.strokeStyle = '#0b0f0b'; c.lineWidth = 2.4 * u;
+    c.beginPath(); c.moveTo(tx - 14 * u, H); c.lineTo(tx - 7 * u, H - th); c.moveTo(tx + 14 * u, H); c.lineTo(tx + 7 * u, H - th);
+    c.moveTo(tx - 12 * u, H - th * 0.3); c.lineTo(tx + 9 * u, H - th * 0.65); c.moveTo(tx + 12 * u, H - th * 0.3); c.lineTo(tx - 9 * u, H - th * 0.65); c.stroke();
+    c.fillStyle = '#0b0f0b'; c.fillRect(tx - 12 * u, H - th - 16 * u, 24 * u, 16 * u);
+    c.beginPath(); c.moveTo(tx - 15 * u, H - th - 16 * u); c.lineTo(tx, H - th - 24 * u); c.lineTo(tx + 15 * u, H - th - 16 * u); c.fill();
+    this.beams.push({ x: tx, y: H - th - 9 * u });
+    // flagpole with the tricolour
+    const px = w * 0.62, ph = 110 * u;
+    c.fillStyle = '#cfd3d8'; c.fillRect(px - 0.9 * u, H - ph, 1.8 * u, ph);
+    const fw = 30 * u, fh = 20 * u, fy = H - ph + 2 * u;
+    [['#ff9933', 0], ['#ffffff', 1], ['#138808', 2]].forEach(([col, i]) => { c.fillStyle = col; c.fillRect(px + 1, fy + (fh / 3) * i, fw, fh / 3); });
+    c.strokeStyle = '#000080'; c.lineWidth = 0.8 * u; c.beginPath(); c.arc(px + 1 + fw / 2, fy + fh / 2, fh / 7, 0, Math.PI * 2); c.stroke();
+  }
+
+  /** Palace: a heritage facade with domes, chhatris and arches outlined in lamps. */
+  palace(c, r, H) {
+    const u = this.u, w = this.w, pw = Math.min(w * 0.9, 560 * u), px = (w - pw) / 2, ph = 60 * u, top = H - ph;
+    this.skyline(c, r, H, 0.4, '#170f2a', 0.1);
+    c.fillStyle = '#120b1e'; c.fillRect(px, top, pw, ph);
+    // central dome
+    const cx = w / 2, dr = Math.min(48 * u, pw * 0.12);
+    c.fillRect(cx - dr * 1.3, top - 22 * u, dr * 2.6, 24 * u);
+    c.beginPath(); c.moveTo(cx - dr, top - 22 * u); c.bezierCurveTo(cx - dr * 1.25, top - 22 * u - dr * 1.1, cx - dr * 0.2, top - 22 * u - dr * 1.4, cx, top - 22 * u - dr * 1.8);
+    c.bezierCurveTo(cx + dr * 0.2, top - 22 * u - dr * 1.4, cx + dr * 1.25, top - 22 * u - dr * 1.1, cx + dr, top - 22 * u); c.fill();
+    // chhatris along the roof
+    const n = Math.max(4, Math.round(pw / (70 * u)));
+    for (let i = 0; i < n; i++) {
+      const x = px + (pw / n) * (i + 0.5); if (Math.abs(x - cx) < dr * 1.6) continue;
+      c.fillRect(x - 8 * u, top - 12 * u, 16 * u, 12 * u); c.beginPath(); c.arc(x, top - 12 * u, 9 * u, Math.PI, 0); c.fill(); c.fillRect(x - 0.6 * u, top - 25 * u, 1.2 * u, 5 * u);
+      for (let k = 0; k <= 8; k++) { const a = Math.PI + (k / 8) * Math.PI; this.bulbs.push({ x: x + Math.cos(a) * 9 * u, y: top - 12 * u + Math.sin(a) * 9 * u, c: 1, ph: k }); }
+    }
+    // arches, lit inside, with lamps along the outline
+    const an = Math.max(5, Math.round(pw / (36 * u))), aw = (pw / an) * 0.6;
+    for (let i = 0; i < an; i++) {
+      const ax = px + (pw / an) * (i + 0.5), ab = H - 2 * u, ah = ph * 0.62;
+      c.fillStyle = 'rgba(255,170,80,0.22)'; c.beginPath(); c.moveTo(ax - aw / 2, ab); c.lineTo(ax - aw / 2, ab - ah * 0.6); c.quadraticCurveTo(ax - aw / 2, ab - ah, ax, ab - ah * 1.05); c.quadraticCurveTo(ax + aw / 2, ab - ah, ax + aw / 2, ab - ah * 0.6); c.lineTo(ax + aw / 2, ab); c.fill();
+    }
+    for (let k = 0; k <= 30; k++) this.bulbs.push({ x: px + (pw * k) / 30, y: top, c: 1, ph: k });
+    for (let k = 0; k <= 16; k++) { const t = k / 16; this.bulbs.push({ x: cx - dr + 2 * dr * t, y: top - 22 * u - Math.sin(t * Math.PI) * dr * 1.45 - (t > 0.35 && t < 0.65 ? dr * 0.25 : 0), c: 1, ph: k }); }
+  }
+
+  /** Adventure camp: forest, a mountain, tents and a crackling campfire. */
+  camp(c, r, H) {
+    const u = this.u, w = this.w;
+    this.mountains(c, r, H, 2, 100, 140, '#101a2c', 'rgba(220,232,255,0.3)');
+    this.pines(c, r, H, Math.round(w / (22 * u)), 40, 90, '#060b0a');
+    const t1 = w * 0.22, t2 = w * 0.36;
+    this.tent(c, t1, H, 46 * u, 34 * u, '#2a3a1a', 'rgba(255,190,100,0.75)');
+    this.tent(c, t2, H, 38 * u, 28 * u, '#4a2414', null);
+    this.fires.push({ x: w * 0.7, y: H - 2 * u });
+    c.fillStyle = '#2b1a0c'; c.fillRect(w * 0.7 - 20 * u, H - 6 * u, 40 * u, 4 * u);
+  }
+
+  /** Home: the family house with a decorated door, kandil lanterns and the family on the balcony. */
+  home(c, r, H) {
+    const u = this.u, w = this.w, hw = Math.min(w * 0.82, 480 * u), hx = (w - hw) / 2, f1 = 40 * u, f2 = 34 * u, top = H - f1 - f2;
+    this.skyline(c, r, H, 0.55, '#1a0f2c', 0.15);
+    c.fillStyle = '#2a1626'; c.fillRect(hx, top, hw, f1 + f2);
+    c.fillStyle = '#3a1f30'; c.beginPath(); c.moveTo(hx - 10 * u, top); c.lineTo(hx + hw / 2, top - 26 * u); c.lineTo(hx + hw + 10 * u, top); c.fill();
+    c.fillStyle = '#1c0f19'; c.fillRect(hx - 6 * u, H - f1 - 4 * u, hw + 12 * u, 4 * u); // balcony slab
+    // door with marigold toran
+    const dx = w / 2, dw = 26 * u, dh = 32 * u;
+    c.fillStyle = '#ffb45c'; c.globalAlpha = 0.85; c.fillRect(dx - dw / 2, H - dh, dw, dh); c.globalAlpha = 1;
+    c.fillStyle = '#5a2a12'; c.fillRect(dx - dw / 2 - 3 * u, H - dh - 3 * u, dw + 6 * u, 3 * u);
+    for (let i = 0; i <= 8; i++) { const x = dx - dw / 2 + (dw * i) / 8; c.fillStyle = i % 2 ? '#ff9a1a' : '#ffd23f'; c.beginPath(); c.arc(x, H - dh + 1.5 * u + Math.sin((i / 8) * Math.PI) * 3 * u, 1.8 * u, 0, Math.PI * 2); c.fill(); c.fillStyle = '#2f8f4e'; c.fillRect(x - 0.6 * u, H - dh + 3 * u, 1.2 * u, 4 * u); }
+    // windows
+    for (const k of [-1, 1]) for (const fl of [0, 1]) {
+      const wx = dx + k * hw * 0.3 - 11 * u, wy = fl ? top + 8 * u : H - f1 + 8 * u;
+      c.fillStyle = '#ffc56b'; c.globalAlpha = 0.7; c.fillRect(wx, wy, 22 * u, 18 * u); c.globalAlpha = 1;
+      c.fillStyle = '#2a1626'; c.fillRect(wx + 10.4 * u, wy, 1.2 * u, 18 * u);
+      this.kandils.push({ x: wx + 11 * u, y: wy - 2 * u, col: ['#ff4b4b', '#ffcf3a', '#ff5ec4', '#53ff8f'][(k + 1) + fl] });
+    }
+    // the family watching from the balcony
+    const fam = [[-0.12, 1, 1], [-0.07, 0.75, 0], [-0.03, 0.62, 0], [0.09, 1.05, 1], [0.13, 0.9, 1]];
+    c.fillStyle = '#0d0610';
+    for (const [ox, s, adult] of fam) {
+      const x = dx + ox * hw, b = H - f1 - 4 * u, hgt = (adult ? 22 : 15) * u * s;
+      c.beginPath(); c.arc(x, b - hgt, 3.2 * u * (adult ? 1 : 0.85), 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.moveTo(x - 4.5 * u * s, b); c.quadraticCurveTo(x - 4.5 * u * s, b - hgt * 0.75, x, b - hgt * 0.8); c.quadraticCurveTo(x + 4.5 * u * s, b - hgt * 0.75, x + 4.5 * u * s, b); c.fill();
+    }
+    for (let k = 0; k <= 30; k++) { const t = k / 30; this.bulbs.push({ x: hx - 10 * u + (hw + 20 * u) * t, y: top - 26 * u * (1 - Math.abs(t - 0.5) * 2), c: k % TORAN.length, ph: 0 }); }
+  }
+
+  /** Per-frame living details: campfire, kandils, searchlight, snow or sand. */
+  drawLiving(c, now) {
+    const u = this.u, t = now / 1000;
+    for (const f of this.fires) {
+      this.lights.push({ x: f.x, y: f.y, r: 90 * u, colour: 'rgba(255,150,60,1)', a: 0.5 + Math.sin(t * 9) * 0.08 });
+      c.save(); c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 5; i++) {
+        const fh = (16 + Math.sin(t * 11 + i * 2) * 4) * u, fx = f.x + (i - 2) * 4 * u;
+        const g = c.createRadialGradient(fx, f.y - fh * 0.3, 0, fx, f.y - fh * 0.3, fh * 0.7);
+        g.addColorStop(0, 'rgba(255,240,180,0.9)'); g.addColorStop(0.5, 'rgba(255,140,40,0.6)'); g.addColorStop(1, 'rgba(255,60,0,0)');
+        c.fillStyle = g; c.beginPath(); c.moveTo(fx - 4 * u, f.y); c.quadraticCurveTo(fx - 3 * u, f.y - fh * 0.6, fx + Math.sin(t * 7 + i) * 2 * u, f.y - fh); c.quadraticCurveTo(fx + 3 * u, f.y - fh * 0.6, fx + 4 * u, f.y); c.fill();
+      }
+      c.restore();
+    }
+    for (const k of this.kandils) {
+      const sw = Math.sin(t * 1.6 + k.x) * 0.12, x = k.x + sw * 6 * u, y = k.y;
+      c.save(); c.translate(x, y); c.rotate(sw);
+      c.strokeStyle = 'rgba(255,255,255,0.3)'; c.lineWidth = 0.6 * u; c.beginPath(); c.moveTo(0, -8 * u); c.lineTo(0, 0); c.stroke();
+      c.globalCompositeOperation = 'lighter'; c.fillStyle = k.col; c.globalAlpha = 0.85;
+      c.beginPath(); for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 - Math.PI / 2, rr = (i % 2 ? 3 : 7) * u; c.lineTo(Math.cos(a) * rr, 7 * u + Math.sin(a) * rr); } c.fill();
+      c.globalAlpha = 0.25; c.beginPath(); c.arc(0, 7 * u, 14 * u, 0, Math.PI * 2); c.fill();
+      c.fillStyle = k.col; c.globalAlpha = 0.7; for (let i = -1; i <= 1; i++) c.fillRect(i * 2 * u, 14 * u, 0.8 * u, 7 * u);
+      c.restore();
+    }
+    for (const b of this.beams) {
+      const a = -Math.PI / 2 + Math.sin(t * 0.35) * 1.1, L = this.h * 0.9;
+      c.save(); c.globalCompositeOperation = 'lighter';
+      const g = c.createLinearGradient(b.x, b.y, b.x + Math.cos(a) * L, b.y + Math.sin(a) * L);
+      g.addColorStop(0, 'rgba(255,250,220,0.22)'); g.addColorStop(1, 'rgba(255,250,220,0)');
+      c.fillStyle = g; c.beginPath(); c.moveTo(b.x, b.y);
+      c.lineTo(b.x + Math.cos(a - 0.07) * L, b.y + Math.sin(a - 0.07) * L); c.lineTo(b.x + Math.cos(a + 0.07) * L, b.y + Math.sin(a + 0.07) * L); c.fill();
+      c.restore();
+    }
+    if (this.flakes.length) {
+      const snow = (THEMES[this.theme] || {}).weather === 'snow';
+      c.fillStyle = snow ? 'rgba(255,255,255,0.85)' : 'rgba(230,190,140,0.35)';
+      for (const f of this.flakes) {
+        if (snow) { f.y += f.s * 0.6 * u; f.x += Math.sin(t + f.ph) * 0.4 * u; } else { f.x += f.s * 1.8 * u; f.y += Math.sin(t * 2 + f.ph) * 0.2 * u; }
+        if (f.y > this.h) { f.y = -4; f.x = Math.random() * this.w; }
+        if (f.x > this.w) { f.x = -4; f.y = this.horizon + Math.random() * (this.h - this.horizon); }
+        c.beginPath(); c.arc(f.x, f.y, f.s * u * (snow ? 1 : 0.6), 0, Math.PI * 2); c.fill();
+      }
+    }
+  }
+
   skyline(c, r, H, scale, fill, windows, near = false) {
     const u = this.u, tops = [];
     let x = -10 * u;
@@ -342,6 +597,7 @@ export class Scene {
     c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     // diyas
     for (const d of this.diyas) this.drawDiya(c, d, now);
+    this.drawLiving(c, now);
   }
 
   drawDiya(c, d, now) {

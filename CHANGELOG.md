@@ -9,6 +9,23 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-03 · Play build 3
+### Added
+- **Real lighting.** Tap the ground to set a cracker down unlit, then press and drag your lighter to its fuse. Hold it there a moment and the fuse catches with a fizz of sparks, then it goes off. Choose the lighter from the rail: **agarbatti** (glowing tip and incense smoke), **candle** or **phuljhadi**. The old tap-to-light-at-once way is still in Settings (*Real lighting* off).
+- **Six new backgrounds**, ten in all: **Home** (the family house with a marigold toran, swaying kandil lanterns and the family on the balcony), **Palace** (domes, chhatris and arches outlined in lamps), **Himalaya** (snow peaks, snowy pines, a lit chalet and falling snow), **Desert** (dunes, a fort, camels, tents and drifting sand), **Border Post** (barracks, a watchtower with a sweeping searchlight, tents and the tricolour) and **Camp** (forest, tents and a crackling campfire).
+- **Background button** on the rail opens a strip of every background over the tray, so you can switch on the spot.
+- **About Diwali**: why it is celebrated (Rama's return, Lakshmi Puja, Krishna and Narakasura, Kali Puja, Mahavira's nirvana, Bandi Chhor Divas), which calendar it follows (Kartik Amavasya in the Hindu lunisolar calendar), the five days with 2026 dates, the main date up to 2030, how it is celebrated, why it is good for us, and a green-Diwali note. It also shows a countdown to Diwali.
+- **Your green Diwali** (tap the tally): for tonight and all time, the CO₂ kept out of the air (with phone-charge and tree-day equivalents), the cigarettes' worth of smoke nobody had to breathe, and how far the dirtiest cracker would have pushed PM2.5 past India's AQI *Severe* line and safe limit. Smoke and PM2.5 for five crackers come from a 2016 study by the Chest Research Foundation and the University of Pune; everything else is labelled as an estimate. The tally now reads "N lit · X g CO₂ saved".
+- **Cracker box**: the "All" button at the start of the tray opens every cracker sorted onto shelves (Ground, Sky, Loud, Strings, Handheld).
+- **Field manual** for every cracker (the ⓘ in the box): how it works, how to stay safe, and what one real cracker costs in smoke, PM2.5, CO₂ and noise.
+- **Greeting card styles**: Classic, Rangoli (petal corners and a gold frame), Diya (a row of lamps), Green Diwali (your smoke-free stats) and Minimal. Cards use whichever background you're on.
+- **Shake phone to light** (Settings).
+- Privacy policy: a section on the motion sensor.
+### Changed
+- **New logo**: the "A" is now two phuljhadis leaning together, their tips meeting in a sparkle star, with a glowing light trail as the crossbar. Splash animation, app icon and store graphics updated.
+- Narrow phones show just the logo mark in the top bar, so the tally always fits.
+- Service-worker cache bumped to `patakha-v3`.
+
 ## [0.2.0] — 2026-10-03 · Play build 2 · `6d295c3`
 ### Changed
 - **New logo.** The ARTIN "A" is now a lamp: a diya flame glows inside the A, a clay bowl forms its crossbar, and three stars twinkle above. The old spark fountain from the A's tip could be misread, so it is gone. The splash animation, app icon and store graphics are updated to match.

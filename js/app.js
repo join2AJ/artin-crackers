@@ -1,6 +1,7 @@
 // Patakha: Diwali Crackers Simulator. App controller: stage loop, input, tray, sheets.
 
-import { CRACKERS, byId, ICONS, DISTANT, PALETTES } from './crackers.js';
+import { CRACKERS, byId, ICONS, DISTANT, PALETTES, MANUAL, CATS } from './crackers.js';
+import { Lighter, LIGHTERS } from './lighter.js';
 import { Audio } from './audio.js';
 import { Haptics, Torch, Sparks, NATIVE } from './fx.js';
 import { Scene, THEMES } from './scene.js';
@@ -9,7 +10,7 @@ import { Mic } from './mic.js';
 import { Store, PRODUCTS, ls, fmtLeft } from './store.js';
 
 const $ = (s) => document.querySelector(s);
-const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'city', micSens: 0.8 }, ls.get('settings', {}));
+const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'city', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'classic' }, ls.get('settings', {}));
 const save = () => ls.set('settings', settings);
 if (!byId[settings.sel]) settings.sel = 'anar';
 
@@ -49,39 +50,56 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// ------------------------------------------------------------------ lighting
-const tally = { tonight: 0, total: ls.get('total', 0) };
-function count() {
-  tally.tonight++; tally.total++;
-  ls.set('total', tally.total);
-  $('#litCount').textContent = tally.tonight;
+// ------------------------------------------------------------------ lighting & green impact
+// Every virtual cracker is one real cracker not burst: we add up what it would have cost the air.
+const ZERO = () => ({ count: 0, co2: 0, smoke: 0, pm: 0 });
+const saved = ls.get('impact', null);
+const impact = { tonight: ZERO(), total: Object.assign(ZERO(), saved || { count: ls.get('total', 0) }) };
+const fmtG = (g) => (g >= 1000 ? (g / 1000).toFixed(g >= 10000 ? 0 : 1) + ' kg' : Math.round(g) + ' g');
+function count(def) {
+  const e = MANUAL[def.id]?.eco || {};
+  for (const k of [impact.tonight, impact.total]) { k.count++; k.co2 += e.co2 || 0; k.smoke += e.smoke || 0; k.pm = Math.max(k.pm, e.pm || 0); }
+  ls.set('impact', impact.total);
+  $('#litCount').textContent = impact.tonight.count;
+  $('#co2Count').textContent = fmtG(impact.tonight.co2);
 }
 
 let torchTimers = [];
-async function light(def, x, y, { quiet = false } = {}) {
+/** Puts a cracker on the terrace. Lit at once, or left unlit for the lighter (`unlit`). */
+async function light(def, x, y, { quiet = false, unlit = false } = {}) {
   Audio.unlock();
   if (Store.locked(def.id)) { if (!quiet) openUnlock(def); return null; }
-  if (actives.length >= (quiet ? 9 : 8)) { if (!quiet) toast('Let these finish first'); return null; }
+  if (actives.length >= (quiet ? 9 : 10)) { if (!quiet) toast('Let these finish first'); return null; }
   const pos = def.kind === 'phuljhadi' ? { x, y } : scene.ground(x, y);
   const v = await Audio.variant(def);
-  const h = Audio.play(v.buffer, { pan: (pos.x / scene.w - 0.5) * 1.2 });
-  const vis = new VISUALS[def.kind](st, v.plan, pos.x, pos.y, h.when);
-  vis.def = def; vis.sound = h;
+  const vis = new VISUALS[def.kind](st, v.plan, pos.x, pos.y, Infinity);
+  vis.def = def; vis.variant = v;
   actives.push(vis);
+  if (unlit) vis.lit = false; else ignite(vis);
+  Audio.warm(def);
+  return vis;
+}
+/** The fuse catches: sound, vibration, flashlight and visuals all start together. */
+function ignite(vis) {
+  const def = vis.def, v = vis.variant;
+  const h = Audio.play(v.buffer, { pan: (vis.x / scene.w - 0.5) * 1.2 });
+  vis.when = h.when; vis.lit = true; vis.sound = h;
   Haptics.add(v.envelope, def.feel, h.when);
   if (Torch.active) {
     for (const f of VISUALS[def.kind].torch(v.plan)) torchTimers.push(setTimeout(() => Torch.flash(f.ms), Math.max(0, h.when - performance.now() + f.t * 1000)));
     if (torchTimers.length > 400) torchTimers = torchTimers.slice(-200);
   }
-  count();
+  count(def);
   hint(null);
-  Audio.warm(def);
-  return vis;
 }
 
 // ------------------------------------------------------------------ input on the terrace
+// Real lighting: a quick tap places the cracker, then press and drag to hold the
+// lighter (agarbatti, candle or phuljhadi) to its fuse. Quick mode: a tap lights at once.
+const lighter = new Lighter();
 const grabs = new Map(); // pointerId -> sparkler visual
-let lastMove = performance.now();
+const press = new Map(); // pointerId -> lighter press
+let lastMove = performance.now(), toldLighter = false;
 stageEl.addEventListener('pointerdown', async (e) => {
   if (!$('#welcome').hidden) return;
   const x = e.clientX, y = e.clientY, id = e.pointerId;
@@ -97,34 +115,80 @@ stageEl.addEventListener('pointerdown', async (e) => {
   // pick up a sparkler that's already burning
   const u = scene.u;
   for (const v of actives) {
-    if (v.def.kind !== 'phuljhadi' || v.t > v.p.end) continue;
+    if (v.def.kind !== 'phuljhadi' || v.lit === false || v.t > v.p.end) continue;
     const tp = v.tip();
     if (Math.hypot(v.hx - x, v.hy - y) < 46 * u || Math.hypot(tp.x - x, tp.y - y) < 40 * u) {
       v.held = true; grabs.set(id, v); stageEl.setPointerCapture(id); return;
     }
   }
   const def = byId[settings.sel];
-  if (def.kind !== 'phuljhadi') { light(def, x, y); return; }
-  // sparkler: follows the finger; the pointer may move while its sound renders
-  const pend = { pending: true, x, y, up: false };
-  grabs.set(id, pend); stageEl.setPointerCapture(id);
-  const vis = await light(def, x, y);
-  if (vis) vis.moveTo(pend.x, pend.y, 0);
-  if (vis && !pend.up) { vis.held = true; grabs.set(id, vis); } else grabs.delete(id);
+  if (def.kind === 'phuljhadi') {
+    // sparkler: follows the finger; the pointer may move while its sound renders
+    const pend = { pending: true, x, y, up: false };
+    grabs.set(id, pend); stageEl.setPointerCapture(id);
+    const vis = await light(def, x, y);
+    if (vis) vis.moveTo(pend.x, pend.y, 0);
+    if (vis && !pend.up) { vis.held = true; grabs.set(id, vis); } else grabs.delete(id);
+    return;
+  }
+  if (!settings.realLight) { light(def, x, y); return; }
+  press.set(id, { x0: x, y0: y, t0: performance.now(), moved: false, lit: false });
+  lighter.x = x; lighter.y = y; lighter.pid = id; lighter.active = true;
+  stageEl.setPointerCapture(id);
 });
 stageEl.addEventListener('pointermove', (e) => {
+  const pr = press.get(e.pointerId);
+  if (pr) {
+    lighter.x = e.clientX; lighter.y = e.clientY;
+    if (Math.hypot(e.clientX - pr.x0, e.clientY - pr.y0) > 10) pr.moved = true;
+    return;
+  }
   const g = grabs.get(e.pointerId);
   if (!g) return;
   const now = performance.now(), dt = Math.max(0.001, (now - lastMove) / 1000); lastMove = now;
   if (g.pending) { g.x = e.clientX; g.y = e.clientY; } else g.moveTo(e.clientX, e.clientY, dt);
 });
 const release = (e) => {
+  const pr = press.get(e.pointerId);
+  if (pr) {
+    press.delete(e.pointerId);
+    if (lighter.pid === e.pointerId) lighter.active = false;
+    if (!pr.moved && !pr.lit && performance.now() - pr.t0 < 350 && e.type === 'pointerup') place(pr.x0, pr.y0);
+    return;
+  }
   const g = grabs.get(e.pointerId);
   if (!g) return;
   if (g.pending) g.up = true; else { g.held = false; grabs.delete(e.pointerId); }
 };
 stageEl.addEventListener('pointerup', release);
 stageEl.addEventListener('pointercancel', release);
+
+/** Real lighting: set the selected cracker down, unlit. */
+async function place(x, y) {
+  const spot = scene.ground(x, y), u = scene.u;
+  if (actives.some((v) => v.lit === false && Math.hypot(v.x - spot.x, v.y - spot.y) < 26 * u)) {
+    toast(`Press and drag to hold the ${LIGHTERS[lighter.kind].name.toLowerCase()} to its fuse`); return;
+  }
+  const vis = await light(byId[settings.sel], x, y, { unlit: true });
+  if (vis) { Haptics.tap(6); if (!toldLighter) { toldLighter = true; hint(`Now press and drag the ${LIGHTERS[lighter.kind].name.toLowerCase()} to the fuse`, true); } }
+}
+
+/** While the lighter is held, any fuse it touches for long enough catches fire. */
+function touchFuses(now, dt) {
+  const pr = press.get(lighter.pid);
+  lighter.shown = !!(lighter.active && pr && (pr.moved || now - pr.t0 > 150));
+  if (!lighter.shown) return;
+  const u = scene.u, tp = lighter.tip(u);
+  for (const v of actives) {
+    if (v.lit !== false) continue;
+    const fp = v.fusePoint();
+    if (Math.hypot(fp.x - tp.x, fp.y - tp.y) < 16 * u) {
+      v.touch = (v.touch || 0) + dt;
+      for (let i = 0; i < 2; i++) sparks.add({ x: fp.x, y: fp.y, vx: (Math.random() - 0.5) * 80 * u, vy: -Math.random() * 80 * u, life: 0.15, colour: '#ffd27a', size: 1.2 * u, drag: 2, grav: 100 * u });
+      if (v.touch >= lighter.catchTime) { ignite(v); pr.lit = true; Haptics.tap(10); }
+    } else v.touch = 0;
+  }
+}
 
 // ------------------------------------------------------------------ the loop
 let last = performance.now(), blowAcc = 0, lastBlow = 0, allOutTold = false;
@@ -144,12 +208,14 @@ function frame(now) {
     if (scene.litCount) allOutTold = false;
   } else scene.wind *= 0.9;
 
-  for (const v of actives) v.update(dt);
+  touchFuses(now, dt);
+  for (const v of actives) if (v.lit !== false) v.update(dt);
   actives = actives.filter((v) => !v.done);
   scene.beginFrame(now);
   scene.drawFloorMarks(dt);
   for (const v of actives) v.draw(scene.pc);
   scene.drawDebris(dt);
+  lighter.draw(scene.pc, now, scene.u, st, lighter.shown);
   sparks.update(dt);
   sparks.draw(dt);
   if (settings.ambient && Audio.ctx && now > nextAmbient) { nextAmbient = now + 5000 + Math.random() * 9000; ambient(); }
@@ -237,25 +303,79 @@ function takeSnapshot() {
   c.drawImage(scene.props, sx, sy, cw, ch, 0, 0, W, H);
   c.globalCompositeOperation = 'lighter'; c.drawImage(sparks.cv, sx, sy, cw, ch, 0, 0, W, H); c.globalCompositeOperation = 'source-over';
 }
+const CARD_STYLES = { classic: 'Classic', rangoli: 'Rangoli', diya: 'Diya', green: 'Green Diwali', minimal: 'Minimal' };
+function petalRing(c, cx, cy, R, n, col, wide) {
+  c.fillStyle = col;
+  for (let i = 0; i < n; i++) {
+    c.save(); c.translate(cx, cy); c.rotate((i / n) * Math.PI * 2);
+    c.beginPath(); c.moveTo(R * 0.35, 0); c.quadraticCurveTo(R * 0.7, -wide, R, 0); c.quadraticCurveTo(R * 0.7, wide, R * 0.35, 0); c.fill(); c.restore();
+  }
+}
+function cardDiya(c, x, y, s) {
+  c.fillStyle = '#b4532a'; c.beginPath(); c.moveTo(x - 30 * s, y); c.quadraticCurveTo(x, y + 30 * s, x + 30 * s, y); c.closePath(); c.fill();
+  c.fillStyle = '#d97a45'; c.beginPath(); c.ellipse(x, y, 30 * s, 7 * s, 0, 0, Math.PI * 2); c.fill();
+  const g = c.createRadialGradient(x, y - 22 * s, 0, x, y - 22 * s, 40 * s);
+  g.addColorStop(0, 'rgba(255,240,190,1)'); g.addColorStop(0.3, 'rgba(255,190,80,0.8)'); g.addColorStop(1, 'rgba(255,120,30,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(x, y - 22 * s, 40 * s, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#fffbe6'; c.beginPath(); c.moveTo(x - 7 * s, y - 4 * s); c.quadraticCurveTo(x - 8 * s, y - 22 * s, x, y - 40 * s); c.quadraticCurveTo(x + 8 * s, y - 22 * s, x + 7 * s, y - 4 * s); c.fill();
+}
 function drawCard() {
-  const cv = $('#cardCanvas'), c = cv.getContext('2d'), W = cv.width, H = cv.height, name = $('#cardName').value.trim();
+  const cv = $('#cardCanvas'), c = cv.getContext('2d'), W = cv.width, H = cv.height, name = $('#cardName').value.trim(), style = settings.cardStyle;
+  c.save();
   c.drawImage(snap, 0, 0);
-  let g = c.createLinearGradient(0, 0, 0, H * 0.45);
-  g.addColorStop(0, 'rgba(5,3,11,0.7)'); g.addColorStop(1, 'rgba(5,3,11,0)');
-  c.fillStyle = g; c.fillRect(0, 0, W, H * 0.45);
-  g = c.createLinearGradient(0, H * 0.7, 0, H);
-  g.addColorStop(0, 'rgba(5,3,11,0)'); g.addColorStop(1, 'rgba(5,3,11,0.85)');
-  c.fillStyle = g; c.fillRect(0, H * 0.7, W, H * 0.3);
+  const shade = (y0, y1, a0, a1) => { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, `rgba(5,3,11,${a0})`); g.addColorStop(1, `rgba(5,3,11,${a1})`); c.fillStyle = g; c.fillRect(0, y0, W, y1 - y0); };
+  const spaced = (txt, x, y, sp) => { if ('letterSpacing' in c) c.letterSpacing = sp + 'px'; c.fillText(txt, x, y); if ('letterSpacing' in c) c.letterSpacing = '0px'; };
   c.textAlign = 'center'; c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 24;
-  c.fillStyle = '#ffb627'; c.font = '128px "Yatra One", "Noto Sans Devanagari", sans-serif';
-  c.fillText('शुभ दीपावली', W / 2, 200);
-  c.fillStyle = '#fff4e2'; c.font = '700 64px "Chakra Petch", sans-serif';
-  if ('letterSpacing' in c) c.letterSpacing = '12px';
-  c.fillText('HAPPY DIWALI', W / 2, 296);
-  if ('letterSpacing' in c) c.letterSpacing = '0px';
-  if (name) { c.font = '500 50px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('with love from ' + name, W / 2, H - 150); }
+  let nameY = H - 150;
+  if (style === 'minimal') {
+    c.fillStyle = 'rgba(5,3,11,0.55)'; c.fillRect(0, 0, W, H);
+    c.shadowBlur = 0; c.strokeStyle = '#ffb627'; c.lineWidth = 2; c.beginPath(); c.moveTo(W / 2 - 120, H / 2 + 30); c.lineTo(W / 2 + 120, H / 2 + 30); c.stroke();
+    c.fillStyle = '#fff4e2'; c.font = '104px "Yatra One", sans-serif'; c.fillText('शुभ दीपावली', W / 2, H / 2 - 30);
+    c.font = '600 40px "Chakra Petch", sans-serif'; c.fillStyle = '#ffb627'; spaced('HAPPY DIWALI', W / 2, H / 2 + 100, 16);
+    nameY = H / 2 + 190;
+  } else {
+    shade(0, H * 0.45, 0.7, 0); shade(H * 0.62, H, 0, 0.88);
+    c.fillStyle = '#ffb627'; c.font = '128px "Yatra One", "Noto Sans Devanagari", sans-serif';
+    c.fillText(style === 'green' ? 'हरित दीपावली' : 'शुभ दीपावली', W / 2, 200);
+    c.fillStyle = '#fff4e2'; c.font = '700 64px "Chakra Petch", sans-serif';
+    spaced(style === 'green' ? 'A GREEN DIWALI' : 'HAPPY DIWALI', W / 2, 296, 12);
+  }
+  c.shadowBlur = 0;
+  if (style === 'rangoli') {
+    c.strokeStyle = '#ffb627'; c.lineWidth = 6; c.strokeRect(28, 28, W - 56, H - 56); c.lineWidth = 2; c.strokeRect(46, 46, W - 92, H - 92);
+    for (const [x, y] of [[46, 46], [W - 46, 46], [46, H - 46], [W - 46, H - 46]]) {
+      petalRing(c, x, y, 120, 12, '#ff4f8b', 16); petalRing(c, x, y, 84, 10, '#ffcc33', 12); petalRing(c, x, y, 52, 8, '#2ecc71', 10);
+      c.fillStyle = '#ff9933'; c.beginPath(); c.arc(x, y, 18, 0, Math.PI * 2); c.fill();
+    }
+  } else if (style === 'diya') {
+    const g = c.createRadialGradient(W / 2, H, 0, W / 2, H, H * 0.7); g.addColorStop(0, 'rgba(255,150,50,0.35)'); g.addColorStop(1, 'rgba(255,150,50,0)');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 5; i++) cardDiya(c, W * (0.14 + i * 0.18), H - 250 + Math.abs(i - 2) * 22, 1.5 - Math.abs(i - 2) * 0.15);
+    c.font = 'italic 500 38px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('May your home be filled with light', W / 2, 370);
+    nameY = H - 110;
+  } else if (style === 'green') {
+    const t = impact.total;
+    c.fillStyle = 'rgba(10,30,18,0.78)'; c.fillRect(110, H - 470, W - 220, 250);
+    c.strokeStyle = '#53d88a'; c.lineWidth = 2; c.strokeRect(110, H - 470, W - 220, 250);
+    c.fillStyle = '#53d88a'; c.font = '600 34px "Chakra Petch", sans-serif'; spaced('MY SMOKE-FREE DIWALI', W / 2, H - 412, 6);
+    c.fillStyle = '#ffffff'; c.font = '500 40px Barlow, sans-serif';
+    c.fillText(`${Math.max(1, t.count)} crackers, zero smoke`, W / 2, H - 352);
+    c.fillText(`${fmtG(t.co2)} CO₂ · ${Math.round(t.smoke)} cigarettes' smoke saved`, W / 2, H - 296);
+    c.fillStyle = 'rgba(220,240,225,0.75)'; c.font = '28px Barlow, sans-serif'; c.fillText('Celebrate with light, not smoke', W / 2, H - 248);
+  }
+  if (name) { c.shadowBlur = 16; c.font = '500 50px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('with love from ' + name, W / 2, nameY); }
   c.shadowBlur = 0; c.font = '28px "Share Tech Mono", monospace'; c.fillStyle = 'rgba(220,205,230,0.75)';
   c.fillText('Made with Patakha · ARTIN Studios', W / 2, H - 64);
+  c.restore();
+}
+function renderCardStyles() {
+  const box = $('#cardStyles'); box.innerHTML = '';
+  for (const [id, label] of Object.entries(CARD_STYLES)) {
+    const b = document.createElement('button');
+    b.textContent = label; b.setAttribute('aria-pressed', String(settings.cardStyle === id));
+    b.addEventListener('click', () => { settings.cardStyle = id; save(); renderCardStyles(); drawCard(); });
+    box.appendChild(b);
+  }
 }
 async function openCard() {
   Audio.unlock();
@@ -267,6 +387,8 @@ async function openCard() {
   }
   takeSnapshot();
   await Promise.all(['128px "Yatra One"', '700 64px "Chakra Petch"', '500 50px Barlow', '28px "Share Tech Mono"'].map((f) => document.fonts.load(f, 'शुभ दीपावली HAPPY').catch(() => {})));
+  if (!CARD_STYLES[settings.cardStyle]) settings.cardStyle = 'classic';
+  renderCardStyles();
   drawCard();
   openSheet('#card');
 }
@@ -292,20 +414,134 @@ $('#btnCardShare').addEventListener('click', () => {
 });
 
 // ------------------------------------------------------------------ themes
+function setTheme(id) {
+  settings.theme = id; save(); scene.setTheme(id); Audio.tick();
+  renderThemes();
+  $('#optReal').checked = settings.realLight; $('#optShakeLight').checked = settings.shakeLight;
+}
 function renderThemes() {
-  const box = $('#themes'); box.innerHTML = '';
-  for (const [id, t] of Object.entries(THEMES)) {
-    const b = document.createElement('button');
-    b.className = 'theme cut'; b.setAttribute('aria-pressed', String(settings.theme === id));
-    b.innerHTML = `<i style="background:linear-gradient(${t.sky[0]},${t.sky[2]} 60%,${t.wall[0]} 62%,${t.floor[1]})"></i><b>${t.name}</b><span lang="hi">${t.hi}</span>`;
-    b.addEventListener('click', () => { settings.theme = id; save(); scene.setTheme(id); renderThemes(); Audio.tick(); });
-    box.appendChild(b);
+  for (const box of [$('#themes'), $('#themeStrip')]) {
+    box.innerHTML = '';
+    for (const [id, t] of Object.entries(THEMES)) {
+      const b = document.createElement('button');
+      b.className = 'theme cut'; b.setAttribute('aria-pressed', String(settings.theme === id));
+      b.innerHTML = `<i style="background:linear-gradient(${t.sky[0]},${t.sky[2]} 60%,${t.wall[0]} 62%,${t.floor[1]})"></i><b>${t.name}</b><span lang="hi">${t.hi}</span>`;
+      b.addEventListener('click', () => { setTheme(id); if (box.id === 'themeStrip' && window.innerHeight < 500) setTimeout(() => { $('#themeBar').hidden = true; }, 350); });
+      box.appendChild(b);
+    }
   }
 }
+$('#btnTheme').addEventListener('click', () => { const bar = $('#themeBar'); bar.hidden = !bar.hidden; if (!bar.hidden) { renderThemes(); bar.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }); } });
+$('#themeBarClose').addEventListener('click', () => { $('#themeBar').hidden = true; });
+
+// ------------------------------------------------------------------ lighter
+function setLighter(kind) {
+  settings.lighter = kind; lighter.kind = kind; save();
+  $('#btnLighter').setAttribute('aria-label', 'Lighter: ' + LIGHTERS[kind].name);
+}
+$('#btnLighter').addEventListener('click', () => {
+  const ks = Object.keys(LIGHTERS), next = ks[(ks.indexOf(settings.lighter) + 1) % ks.length];
+  setLighter(next); Audio.tick();
+  if (!settings.realLight) { settings.realLight = true; save(); }
+  toast(`Lighter: ${LIGHTERS[next].name} · ${LIGHTERS[next].hi}`);
+});
+
+// ------------------------------------------------------------------ shake to light
+let lastShake = 0;
+window.addEventListener('devicemotion', (e) => {
+  if (!settings.shakeLight || !$('#welcome').hidden) return;
+  const a = e.acceleration?.x != null ? e.acceleration : e.accelerationIncludingGravity;
+  if (!a || a.x == null) return;
+  const g = e.acceleration?.x != null ? 0 : 9.8, m = Math.abs(Math.hypot(a.x, a.y, a.z) - g), now = performance.now();
+  if (m > 16 && now - lastShake > 900) {
+    lastShake = now;
+    const def = byId[settings.sel];
+    if (def.kind !== 'phuljhadi') light(def, scene.w * (0.2 + Math.random() * 0.6), scene.placeTop + Math.random() * (scene.placeBottom - scene.placeTop));
+  }
+});
+
+// ------------------------------------------------------------------ green impact
+let impKey = 'tonight';
+function renderImpact() {
+  const t = impact[impKey], pm = t.pm;
+  const phones = Math.round(t.co2 / 8), treeDays = t.co2 / 58;
+  $('#impStats').innerHTML = [
+    [t.count, 'crackers burst, with zero smoke'],
+    [fmtG(t.co2), `CO₂ kept out of the air (≈ ${phones} phone charges)`],
+    [Math.round(t.smoke), "cigarettes' worth of smoke nobody had to breathe"],
+    [treeDays >= 1 ? treeDays.toFixed(1) : treeDays.toFixed(2), "days of a tree's work absorbing that CO₂"],
+  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  const notes = [];
+  if (pm) {
+    notes.push(`<p>Air quality: the dirtiest of your crackers would have pushed PM2.5 next to you to about <b>${pm.toLocaleString('en-IN')} µg/m³</b>. That is <b>${Math.round(pm / 250)}×</b> the level where India's AQI turns <b>Severe</b> (250 µg/m³), and <b>${Math.round(pm / 60)}×</b> India's safe limit (60 µg/m³ over 24 hours). The spike is short, but it goes straight into the lungs of whoever is standing closest, often children.</p>`);
+    notes.push('<div class="aqi" aria-hidden="true"><i style="background:#3fbf5f"></i><i style="background:#9acd32"></i><i style="background:#f2d335"></i><i style="background:#f29a2e"></i><i style="background:#e8452e"></i><i style="background:#8b1a3a"></i></div>');
+  }
+  if (t.count) notes.push(`<p>You also spared your street ${t.count > 20 ? 'a long night' : 'some'} of bangs that frighten babies, older people, patients and animals. India limits cracker noise to 125 dB(AI) measured 4 m away, and big bombs often go past it.</p>`);
+  else notes.push('<p>Burst a few crackers and come back to see the difference you are making.</p>');
+  $('#impNotes').innerHTML = notes.join('');
+  document.querySelectorAll('#impSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === impKey)));
+}
+$('#btnImpact').addEventListener('click', () => { renderImpact(); openSheet('#impact'); });
+document.querySelectorAll('#impSeg button').forEach((b) => b.addEventListener('click', () => { impKey = b.dataset.k; renderImpact(); }));
+
+// ------------------------------------------------------------------ about Diwali
+const DIWALI = ['2026-11-08', '2027-10-29', '2028-10-17', '2029-11-05', '2030-10-26'];
+function renderCountdown() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const next = DIWALI.map((d) => new Date(d + 'T00:00:00')).find((d) => d >= today);
+  const el = $('#diwaliCountdown');
+  if (!next) { el.hidden = true; return; }
+  const days = Math.round((next - today) / 86400e3), when = next.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  el.innerHTML = days === 0 ? '<b>Today</b> is Diwali! शुभ दीपावली' : `<b>${days}</b> ${days === 1 ? 'day' : 'days'} to Diwali · ${when}`;
+}
+$('#btnAbout').addEventListener('click', () => { renderCountdown(); openSheet('#about'); });
+
+// ------------------------------------------------------------------ cracker box and field manual
+function renderBox() {
+  const list = $('#boxList'); list.innerHTML = '';
+  for (const [cat, label] of Object.entries(CATS)) {
+    const sec = document.createElement('section'); sec.className = 'box-cat';
+    sec.innerHTML = `<h4>${label}</h4><div class="box-grid"></div>`;
+    const grid = sec.querySelector('.box-grid');
+    for (const c of CRACKERS.filter((x) => MANUAL[x.id].cat === cat)) {
+      const b = document.createElement('button');
+      b.className = 'bx'; b.setAttribute('aria-pressed', String(c.id === settings.sel));
+      b.innerHTML = `<svg class="art" viewBox="0 0 48 48" aria-hidden="true">${ICONS[c.id]}</svg><div><b>${c.name}</b><span class="hi" lang="hi">${c.hi}</span></div>${Store.locked(c.id) ? '<svg class="lock"><use href="#i-lock"/></svg>' : ''}`;
+      const info = document.createElement('span'); info.className = 'info'; info.setAttribute('role', 'button'); info.setAttribute('aria-label', `About ${c.name}`);
+      info.innerHTML = '<svg><use href="#i-info"/></svg>';
+      info.addEventListener('click', (e) => { e.stopPropagation(); openManual(c.id); });
+      b.appendChild(info);
+      b.addEventListener('click', () => { closeSheet('#box'); select(c.id, true); });
+      grid.appendChild(b);
+    }
+    list.appendChild(sec);
+  }
+}
+let manualFor = null;
+function openManual(id) {
+  const c = byId[id], m = MANUAL[id], e = m.eco;
+  manualFor = id;
+  $('#manTitle').textContent = c.name;
+  $('#manBody').innerHTML = `<div class="man-art"><svg viewBox="0 0 48 48">${ICONS[id]}</svg><div><div class="hi" lang="hi">${c.hi}</div><div class="muted">${c.blurb}</div></div></div>
+    <div class="man-body"><h4>How it works</h4><p>${m.how}</p><h4>Stay safe</h4><p>${m.safety}</p>
+    <h4>One real ${c.name.toLowerCase()}</h4></div>
+    <div class="stats"><div class="stat"><b>${e.smoke}</b><span>cigarettes' worth of smoke${e.src === 'study' ? ' (measured)' : ' (estimate)'}</span></div>
+    <div class="stat"><b>${e.co2} g</b><span>CO₂ (estimate)</span></div>
+    ${e.pm ? `<div class="stat"><b>${e.pm.toLocaleString('en-IN')}</b><span>µg/m³ peak PM2.5 nearby (measured)</span></div>` : ''}
+    <div class="stat"><b>~${e.db} dB</b><span>loudness up close (estimate)</span></div></div>`;
+  $('#btnManPick').querySelector('span').textContent = Store.locked(id) ? 'Unlock this cracker' : 'Use this cracker';
+  openSheet('#manual');
+}
+$('#btnManPick').addEventListener('click', () => { closeSheet('#manual'); closeSheet('#box'); select(manualFor, true); });
 
 // ------------------------------------------------------------------ tray
 function renderTray() {
   trayEl.innerHTML = '';
+  const box = document.createElement('button');
+  box.className = 'cr box-btn'; box.setAttribute('aria-label', 'Open the cracker box');
+  box.innerHTML = '<svg aria-hidden="true"><use href="#i-grid"/></svg><span class="nm">All</span><span class="hi" lang="hi">डिब्बा</span>';
+  box.addEventListener('click', () => { Audio.unlock(); renderBox(); openSheet('#box'); });
+  trayEl.appendChild(box);
   for (const c of CRACKERS) {
     const b = document.createElement('button');
     b.className = 'cr'; b.dataset.id = c.id;
@@ -318,6 +554,7 @@ function renderTray() {
 }
 function refreshTray() {
   for (const b of trayEl.children) {
+    if (!b.dataset.id) continue;
     const id = b.dataset.id, locked = Store.locked(id), left = Store.tempLeft('c:' + id);
     b.setAttribute('aria-pressed', String(id === settings.sel));
     b.classList.toggle('locked', locked);
@@ -342,7 +579,7 @@ function hint(text, show = false) {
   if (text) el.textContent = text;
   clearTimeout(hintTimer);
   if (show) { el.classList.remove('fade'); hintTimer = setTimeout(() => el.classList.add('fade'), 3200); }
-  else if (tally.tonight > 0) hintTimer = setTimeout(() => el.classList.add('fade'), 600);
+  else if (impact.tonight.count > 0) hintTimer = setTimeout(() => el.classList.add('fade'), 600);
 }
 
 let toastTimer = 0;
@@ -353,7 +590,7 @@ function toast(msg) {
 }
 
 // ------------------------------------------------------------------ sheets
-const sheets = ['#welcome', '#settings', '#unlock', '#card'];
+const sheets = ['#welcome', '#settings', '#box', '#unlock', '#impact', '#about', '#card', '#manual'];
 function openSheet(sel) { $(sel).hidden = false; }
 function closeSheet(sel) { $(sel).hidden = true; }
 document.querySelectorAll('.sheet-wrap').forEach((w) => {
@@ -385,6 +622,8 @@ $('#optVibK').addEventListener('change', (e) => { settings.vibK = +e.target.valu
 $('#optTorch').addEventListener('change', (e) => setTorch(e.target.checked));
 $('#optAmbient').addEventListener('change', (e) => { settings.ambient = e.target.checked; save(); });
 $('#optShake').addEventListener('change', (e) => { settings.shake = e.target.checked; save(); });
+$('#optReal').addEventListener('change', (e) => { settings.realLight = e.target.checked; save(); });
+$('#optShakeLight').addEventListener('change', (e) => { settings.shakeLight = e.target.checked; save(); });
 $('#optMic').addEventListener('input', (e) => { settings.micSens = +e.target.value; Mic.sensitivity = settings.micSens; save(); });
 
 // torch
@@ -503,7 +742,10 @@ async function prewarm() {
 
 function start() {
   Haptics.enabled = settings.vib; Haptics.intensity = settings.vibK; Audio.setVolume(settings.vol);
-  Mic.sensitivity = settings.micSens; setMuted(settings.muted); scene.setTheme(settings.theme);
+  Mic.sensitivity = settings.micSens; setMuted(settings.muted); setLighter(LIGHTERS[settings.lighter] ? settings.lighter : 'agarbatti');
+  if (!THEMES[settings.theme]) settings.theme = 'city';
+  scene.setTheme(settings.theme);
+  $('#litCount').textContent = '0'; $('#co2Count').textContent = '0 g';
   renderTray(); resize(); select(settings.sel);
   requestAnimationFrame((t) => { last = t; frame(t); });
   prewarm();
@@ -524,4 +766,6 @@ $('#btnStart').addEventListener('click', () => {
 });
 
 if ('serviceWorker' in navigator && !NATIVE && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+// test hook for the automated screenshots: ?debug
+if (new URLSearchParams(location.search).has('debug')) window.__patakha = { actives: () => actives, scene, lighter };
 start();

@@ -31,7 +31,7 @@ const browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-ges
 async function shoot(name, w, h, script) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1080 / Math.min(w, h), isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  await page.addInitScript(() => localStorage.setItem('patakha:welcomed', 'true'));
+  await page.addInitScript(() => { localStorage.setItem('patakha:welcomed', 'true'); localStorage.setItem('patakha:settings', JSON.stringify({ realLight: false })); });
   await page.goto(`${BASE}/?storetest`);
   await page.waitForTimeout(1200);
   const g = await page.evaluate(() => { const r = document.querySelector('#tray').getBoundingClientRect(); return { trayTop: r.top }; });

@@ -38,13 +38,17 @@ Everything to paste into Play Console. Character limits are in brackets.
 > • Premium: Rainbow Anar, 1000-wala ladi, 12-shot Sky Shot and the Atom Bomb
 >
 > ✨ FEATURES
+> • Light it for real: set a cracker down and hold an agarbatti, candle or phuljhadi to its fuse
+> • 10 backgrounds: rooftop, home, village, river ghat, palace, Himalaya snow, desert, border post, camp, open sky
+> • See how much CO₂ and smoke you saved, and how bad the air would have got
+> • About Diwali: why we celebrate, the five days and the dates, with a countdown
+> • Field manual for every cracker: how it works and how to stay safe
 > • Realistic sound for every cracker, with echoes off the houses around you
 > • Vibration that follows each cracker's sound: a thump for a bomb, a rattle for a ladi
 > • Flashlight bursts on every big bang
 > • Blow on your phone to put out the diyas, then tap to light them again
 > • Draw with your phuljhadi like a long-exposure photo
 > • Neighbourhood fireworks bursting over the skyline
-> • Four backgrounds: city rooftop, village, river ghat and open sky
 > • Auto show: sit back for a 45-second fireworks show
 > • Make and share a शुभ दीपावली greeting card from your own fireworks
 > • One-tap mute and clear, for when someone walks in

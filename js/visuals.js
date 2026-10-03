@@ -16,7 +16,10 @@ class Visual {
     this.k = st.scene.depth(y); // nearer = bigger
     this.acc = 0;
   }
-  get t() { return (performance.now() - this.when) / 1000; }
+  /** Seconds since lighting. An unlit cracker (lit === false) stays frozen at 0. */
+  get t() { return this.lit === false ? 0 : (performance.now() - this.when) / 1000; }
+  /** Where its fuse is: touch a lighter here to light it. */
+  fusePoint() { return { x: this.x, y: this.y - 10 * this.u }; }
   get u() { return this.st.scene.u * this.k; }
   /** Number of particles to emit this frame for a rate per second (keeps fractions). */
   count(rate, dt) { this.acc += rate * dt; const n = Math.floor(this.acc); this.acc -= n; return n; }
@@ -56,6 +59,7 @@ export function burst(st, x, y, b, { scale = 1, alpha = 1 } = {}) {
 
 // ------------------------------------------------------------------ ANAR
 class Anar extends Visual {
+  fusePoint() { return { x: this.x, y: this.y - 32 * this.u }; }
   update(dt) {
     const t = this.t, p = this.p, u = this.u, st = this.st, tipY = this.y - 30 * u;
     if (t < p.fuse) { this.fuseSpark(this.x, tipY - 3 * u, dt); return; }
@@ -90,6 +94,7 @@ class Anar extends Visual {
 
 // ------------------------------------------------------------------ CHAKRI
 class Chakri extends Visual {
+  fusePoint() { return { x: this.x + 10 * this.u, y: this.y }; }
   constructor(...a) { super(...a); this.th = 0; this.ox = this.x; }
   update(dt) {
     const t = this.t, p = this.p, u = this.u, st = this.st, R = 10 * u;
@@ -124,6 +129,7 @@ class Chakri extends Visual {
 
 // ------------------------------------------------------------------ ROCKET
 class Rocket extends Visual {
+  fusePoint() { return { x: this.x + 1.5 * this.u, y: this.y - 34 * this.u }; }
   constructor(...a) {
     super(...a);
     const s = this.st, p = this.p;
@@ -172,6 +178,7 @@ class Rocket extends Visual {
 
 // ------------------------------------------------------------------ BOMB
 class Bomb extends Visual {
+  fusePoint() { const u = this.u, R = (this.p.big ? 13 : this.p.tube ? 7 : 10) * u; return { x: this.x + R * 0.6 + Math.cos(-0.9) * 14 * u, y: this.y - R * 1.6 + Math.sin(-0.9) * 14 * u }; }
   constructor(...a) { super(...a); this.banged = false; this.glow = 0; }
   update(dt) {
     const t = this.t, p = this.p, u = this.u, st = this.st, R = (p.big ? 13 : p.tube ? 7 : 10) * u;
@@ -228,6 +235,7 @@ class Bomb extends Visual {
 
 // ------------------------------------------------------------------ LADI
 class Ladi extends Visual {
+  fusePoint() { return { x: this.pts[0].x + 6 * this.u, y: this.pts[0].y - 2 * this.u }; }
   constructor(...a) {
     super(...a);
     const st = this.st, sc = st.scene, p = this.p, u = sc.u;
@@ -375,6 +383,7 @@ class Phuljhadi extends Visual {
 
 // ------------------------------------------------------------------ SKY SHOT
 class SkyShot extends Visual {
+  fusePoint() { return { x: this.x + 15 * this.u, y: this.y - 8 * this.u }; }
   constructor(...a) {
     super(...a);
     const sc = this.st.scene;
@@ -416,6 +425,7 @@ class SkyShot extends Visual {
 
 // ------------------------------------------------------------------ SAANP GOLI (snake tablet)
 class Snake extends Visual {
+  fusePoint() { return { x: this.x, y: this.y - 2 * this.u }; }
   constructor(...a) {
     super(...a);
     const r = rng(this.p.seed), u = this.u, n = 70;

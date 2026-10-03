@@ -245,3 +245,53 @@ export const ICONS = {
   skyshot: '<rect x="9" y="22" width="30" height="22" fill="#5a2d8a"/><path d="M9 22 h30 l-4 -4 h-22 Z" fill="#7b46b3"/><g fill="#1b1030"><circle cx="16" cy="21" r="2"/><circle cx="24" cy="21" r="2"/><circle cx="32" cy="21" r="2"/></g><g stroke-linecap="round" stroke-width="1.6"><path d="M16 17 L12 5" stroke="#53ff8f"/><path d="M24 17 V3" stroke="#ffd27a"/><path d="M32 17 L36 5" stroke="#ff4b4b"/></g><path d="M9 32 h30" stroke="#ffcf4a" stroke-width="2"/>',
   atom: '<circle cx="23" cy="28" r="15" fill="#2f8f4e"/><g stroke="#ffcf4a" stroke-width="1.6" fill="none"><ellipse cx="23" cy="28" rx="11" ry="4.5"/><ellipse cx="23" cy="28" rx="11" ry="4.5" transform="rotate(60 23 28)"/><ellipse cx="23" cy="28" rx="11" ry="4.5" transform="rotate(-60 23 28)"/></g><circle cx="23" cy="28" r="2.5" fill="#ff4b4b"/><path d="M33 16 q5 -6 8 -8" stroke="#c49a6c" stroke-width="2" fill="none"/><circle cx="41" cy="8" r="3" fill="#ffd27a"/>',
 };
+
+// ------------------------------------------------------------------ field manual + green impact
+// cat: cracker-box shelf. eco: what one real cracker would have cost the air.
+//   co2   grams of CO₂, rough estimate (about 1 g per gram of powder and paper burnt)
+//   smoke cigarettes' worth of smoke. src 'study' = measured in a 2016 study by the Chest
+//         Research Foundation and the University of Pune; otherwise our estimate
+//   pm    peak PM2.5 (µg/m³) measured where people stand when lighting it (same study)
+//   db    typical loudness near the cracker, estimate
+export const CATS = { ground: 'Ground', sky: 'Sky', loud: 'Loud', strings: 'Strings', hand: 'Handheld' };
+export const MANUAL = {
+  anar: { cat: 'ground', eco: { co2: 60, smoke: 34, src: 'study', pm: 4860, db: 85 },
+    how: 'A clay or paper cone packed with a slow-burning mix of potassium nitrate, charcoal and sulphur, plus aluminium or iron grains. It burns from the top down, and the metal grains glow white-gold as they are thrown up as sparks.',
+    safety: 'Stand it on flat ground and never hold it. An old or damp anar can burst instead of fountaining.' },
+  chakri: { cat: 'ground', eco: { co2: 25, smoke: 68, src: 'study', pm: 9490, db: 90 },
+    how: 'A paper tube wound round a small disc, open at one end. Hot gas escaping sideways pushes the wheel round, like a tiny rocket bent into a circle.',
+    safety: 'Light it on hard, flat ground away from feet. A spinning chakri skids where it likes.' },
+  rocket: { cat: 'sky', eco: { co2: 20, smoke: 30, db: 110 },
+    how: 'A tube of propellant on a balancing stick. The burning powder lifts it; a delay fuse then fires the bursting charge and the coloured stars at the top. Whistling rockets add a whistle mix that screams as it burns.',
+    safety: 'Launch only from a bottle on open ground, pointing straight up, far from buildings, wires and trees.' },
+  ladi: { cat: 'strings', eco: { co2: 60, smoke: 28, db: 120 },
+    how: 'Small paper tubes of flash powder braided on one fuse. Each pop lights the next, so the whole string rattles through in seconds.',
+    safety: 'Lay it straight on the ground and step well back. A ladi jumps and scatters burning paper.' },
+  bomb: { cat: 'loud', eco: { co2: 40, smoke: 40, db: 125 },
+    how: 'Flash powder packed into a ball and wrapped in many layers of jute twine (sutli). The tight wrapping holds the gas in until it bursts all at once, which is why it is so loud.',
+    safety: 'One of the loudest crackers. Keep far away, and never relight a dud: wait, then soak it in water.' },
+  phuljhadi: { cat: 'hand', eco: { co2: 8, smoke: 74, src: 'study', pm: 10390, db: 50 },
+    how: 'A wire coated with a paste of oxidiser, fuel and iron or steel dust. The iron burns as it flies off, branching into the familiar star-shaped sparks.',
+    safety: 'The wire stays hot enough to burn skin after the sparks stop. Drop used sticks into a bucket of water.' },
+  bijli: { cat: 'loud', eco: { co2: 6, smoke: 10, db: 110 },
+    how: 'A tiny paper tube of flash powder: aluminium powder and an oxidiser that burn almost instantly, giving a sharp crack.',
+    safety: 'Small does not mean safe. Never light one in your hand.' },
+  saanp: { cat: 'ground', eco: { co2: 3, smoke: 464, src: 'study', pm: 64500, db: 40 },
+    how: 'A small tablet that burns slowly while gas puffs up the residue into a long, light ash "snake".',
+    safety: 'It looks harmless, but it gave the highest smoke peak of all crackers measured: the smoke of 464 cigarettes in about nine seconds. Children usually light it just a foot away.' },
+  pencil: { cat: 'hand', eco: { co2: 10, smoke: 50, db: 50 },
+    how: 'A thin stick coated with a colour mix: strontium salts burn red, barium salts burn green, and blends give pink and purple.',
+    safety: 'Hold it at arm\'s length, pointing away from people, hair and clothes.' },
+  rainbow: { cat: 'ground', eco: { co2: 70, smoke: 40, db: 85 },
+    how: 'An anar packed in coloured layers. As it burns down it reaches each new layer, so the fountain changes colour.',
+    safety: 'Treat it like any anar: flat ground, light it at arm\'s length, then step back.' },
+  hazaar: { cat: 'strings', eco: { co2: 600, smoke: 277, src: 'study', pm: 38540, db: 125 },
+    how: 'A thousand small crackers braided on one long fuse, firing for half a minute or more.',
+    safety: 'Measured near the people lighting it, a 1000-wala produced one of the highest smoke peaks of any common cracker, about 277 cigarettes\' worth.' },
+  skyshot: { cat: 'sky', eco: { co2: 200, smoke: 120, db: 115 },
+    how: 'A cake of tubes linked by a single fuse. Each tube in turn fires a shell into the sky: a lift charge throws it up and a time fuse bursts it.',
+    safety: 'Set it on firm, level ground before lighting. A cake that tips over fires sideways.' },
+  atom: { cat: 'loud', eco: { co2: 80, smoke: 60, db: 130 },
+    how: 'A large flash-powder bomb in a hard casing. Among the loudest crackers sold, and often above India\'s noise limit.',
+    safety: 'Never light it near homes, hospitals, animals or people. Its bang can damage hearing.' },
+};
