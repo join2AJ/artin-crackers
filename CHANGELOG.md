@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.7.0] — 2026-10-03 · Play build 7
+## [0.7.0] — 2026-10-03 · Play build 7 · `a7177e7`
 ### Added
 - **Android app** (`android/`, app ID `com.artinstudios.crackers`, minSdk 26, target/compile SDK 36, AGP 8.13, Gradle wrapper). A native WebView wrapper bundles the web app from `assets/www` through WebViewAssetLoader, so it works fully offline.
   - `window.ArtinNative`:
