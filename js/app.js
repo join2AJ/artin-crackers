@@ -10,7 +10,7 @@ import { Mic } from './mic.js';
 import { Store, PRODUCTS, ls, fmtLeft } from './store.js';
 
 const $ = (s) => document.querySelector(s);
-const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'city', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'classic' }, ls.get('settings', {}));
+const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'city', micSens: 0.8, realLight: true, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green' }, ls.get('settings', {}));
 const save = () => ls.set('settings', settings);
 if (!byId[settings.sel]) settings.sel = 'anar';
 
@@ -52,16 +52,59 @@ window.addEventListener('resize', resize);
 
 // ------------------------------------------------------------------ lighting & green impact
 // Every virtual cracker is one real cracker not burst: we add up what it would have cost the air.
-const ZERO = () => ({ count: 0, co2: 0, smoke: 0, pm: 0 });
+const ZERO = () => ({ count: 0, co2: 0, smoke: 0, pm: 0, loud: 0 });
 const saved = ls.get('impact', null);
 const impact = { tonight: ZERO(), total: Object.assign(ZERO(), saved || { count: ls.get('total', 0) }) };
 const fmtG = (g) => (g >= 1000 ? (g / 1000).toFixed(g >= 10000 ? 0 : 1) + ' kg' : Math.round(g) + ' g');
-function count(def) {
-  const e = MANUAL[def.id]?.eco || {};
-  for (const k of [impact.tonight, impact.total]) { k.count++; k.co2 += e.co2 || 0; k.smoke += e.smoke || 0; k.pm = Math.max(k.pm, e.pm || 0); }
-  ls.set('impact', impact.total);
+// Green badges, earned on all-time totals.
+const BADGES = [
+  { id: 'seed', icon: '🌱', name: 'Seedling', need: 'First smoke-free cracker', ok: (t) => t.count >= 1 },
+  { id: 'friend', icon: '🍃', name: 'Clean-Air Friend', need: '100 g CO₂ saved', co2: 100 },
+  { id: 'tree', icon: '🌳', name: 'Tree Buddy', need: '500 g CO₂ saved', co2: 500 },
+  { id: 'lungs', icon: '🫁', name: 'Lung Saver', need: "500 cigarettes' smoke saved", ok: (t) => t.smoke >= 500 },
+  { id: 'paws', icon: '🐾', name: 'Pet Protector', need: '25 loud crackers, zero noise', ok: (t) => t.loud >= 25 },
+  { id: 'earth', icon: '🌏', name: 'Earth Guardian', need: '1 kg CO₂ saved', co2: 1000 },
+  { id: 'champ', icon: '🦚', name: 'Green Champion', need: '2.5 kg CO₂ saved', co2: 2500 },
+  { id: 'hero', icon: '🏆', name: 'Air Hero', need: '5 kg CO₂ saved', co2: 5000 },
+];
+const earned = (b, t) => (b.co2 ? t.co2 >= b.co2 : b.ok(t));
+const CO2_STEPS = [0, ...BADGES.filter((b) => b.co2).map((b) => b.co2)];
+function nextStep(g) {
+  for (let i = 1; i < CO2_STEPS.length; i++) if (g < CO2_STEPS[i]) return { from: CO2_STEPS[i - 1], to: CO2_STEPS[i], badge: BADGES.find((b) => b.co2 === CO2_STEPS[i]) };
+  return null;
+}
+function updateEcoMeter() {
+  const t = impact.total, n = nextStep(t.co2), k = n ? (t.co2 - n.from) / (n.to - n.from) : 1;
+  $('#ecoArc').setAttribute('stroke-dashoffset', String(94.25 * (1 - k)));
   $('#litCount').textContent = impact.tonight.count;
   $('#co2Count').textContent = fmtG(impact.tonight.co2);
+}
+/** A little "+60 g CO₂" that floats up from the cracker. */
+function popSaving(x, y, g) {
+  if (!g) return;
+  const el = document.createElement('div');
+  el.className = 'plus'; el.innerHTML = `<svg><use href="#i-leaf"/></svg> +${fmtG(g)} CO₂`;
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  document.body.appendChild(el);
+  el.animate([{ opacity: 0, transform: 'translate(-50%, 6px)' }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.7 }, { opacity: 0, transform: 'translate(-50%, -48px)' }], { duration: 1800, easing: 'ease-out' }).onfinish = () => el.remove();
+  const m = $('#btnImpact'); m.classList.remove('pulse'); void m.offsetWidth; m.classList.add('pulse');
+}
+let msTimer = 0;
+function celebrate(b) {
+  const el = $('#milestone');
+  el.querySelector('i').textContent = b.icon; el.querySelector('b').textContent = b.name;
+  el.querySelector('span').textContent = `Badge earned: ${b.need}. Thank you for a cleaner Diwali!`;
+  el.classList.add('show'); Haptics.tap(30);
+  clearTimeout(msTimer); msTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+function count(def, vis) {
+  const e = MANUAL[def.id]?.eco || {}, before = BADGES.filter((b) => earned(b, impact.total)).length;
+  for (const k of [impact.tonight, impact.total]) { k.count++; k.co2 += e.co2 || 0; k.smoke += e.smoke || 0; k.pm = Math.max(k.pm, e.pm || 0); if ((e.db || 0) >= 110) k.loud++; }
+  ls.set('impact', impact.total);
+  updateEcoMeter();
+  if (vis) { const fp = vis.fusePoint(); popSaving(fp.x, fp.y - 26 * scene.u, e.co2); }
+  const now = BADGES.filter((b) => earned(b, impact.total));
+  if (now.length > before) setTimeout(() => celebrate(now[now.length - 1]), 900);
 }
 
 let torchTimers = [];
@@ -89,7 +132,7 @@ function ignite(vis) {
     for (const f of VISUALS[def.kind].torch(v.plan)) torchTimers.push(setTimeout(() => Torch.flash(f.ms), Math.max(0, h.when - performance.now() + f.t * 1000)));
     if (torchTimers.length > 400) torchTimers = torchTimers.slice(-200);
   }
-  count(def);
+  count(def, vis);
   hint(null);
 }
 
@@ -105,13 +148,9 @@ stageEl.addEventListener('pointerdown', async (e) => {
   const x = e.clientX, y = e.clientY, id = e.pointerId;
   Audio.unlock();
   autoTorch();
-  const di = scene.diyaAt(x, y);
-  if (di >= 0) {
-    const d = scene.diyas[di];
-    if (d.lit) { d.lit = false; d.out = performance.now(); } else { d.lit = true; Audio.strike(); }
-    Haptics.tap(8);
-    return;
-  }
+  const di = scene.diyaAt(x, y), def0 = byId[settings.sel];
+  // with real lighting, a diya is toggled on release (a tap), so a lighter drag may start on one
+  if (di >= 0 && (!settings.realLight || def0.kind === 'phuljhadi')) { toggleDiya(di); return; }
   // pick up a sparkler that's already burning
   const u = scene.u;
   for (const v of actives) {
@@ -132,7 +171,7 @@ stageEl.addEventListener('pointerdown', async (e) => {
     return;
   }
   if (!settings.realLight) { light(def, x, y); return; }
-  press.set(id, { x0: x, y0: y, t0: performance.now(), moved: false, lit: false });
+  press.set(id, { x0: x, y0: y, t0: performance.now(), moved: false, lit: false, diya: di });
   lighter.x = x; lighter.y = y; lighter.pid = id; lighter.active = true;
   stageEl.setPointerCapture(id);
 });
@@ -153,7 +192,7 @@ const release = (e) => {
   if (pr) {
     press.delete(e.pointerId);
     if (lighter.pid === e.pointerId) lighter.active = false;
-    if (!pr.moved && !pr.lit && performance.now() - pr.t0 < 350 && e.type === 'pointerup') place(pr.x0, pr.y0);
+    if (!pr.moved && !pr.lit && performance.now() - pr.t0 < 350 && e.type === 'pointerup') { if (pr.diya >= 0) toggleDiya(pr.diya); else place(pr.x0, pr.y0); }
     return;
   }
   const g = grabs.get(e.pointerId);
@@ -162,6 +201,12 @@ const release = (e) => {
 };
 stageEl.addEventListener('pointerup', release);
 stageEl.addEventListener('pointercancel', release);
+
+function toggleDiya(i) {
+  const d = scene.diyas[i];
+  if (d.lit) { d.lit = false; d.out = performance.now(); } else { d.lit = true; Audio.strike(); }
+  Haptics.tap(8);
+}
 
 /** Real lighting: set the selected cracker down, unlit. */
 async function place(x, y) {
@@ -303,7 +348,7 @@ function takeSnapshot() {
   c.drawImage(scene.props, sx, sy, cw, ch, 0, 0, W, H);
   c.globalCompositeOperation = 'lighter'; c.drawImage(sparks.cv, sx, sy, cw, ch, 0, 0, W, H); c.globalCompositeOperation = 'source-over';
 }
-const CARD_STYLES = { classic: 'Classic', rangoli: 'Rangoli', diya: 'Diya', green: 'Green Diwali', minimal: 'Minimal' };
+const CARD_STYLES = { green: 'Green Diwali', classic: 'Classic', rangoli: 'Rangoli', diya: 'Diya', minimal: 'Minimal' };
 function petalRing(c, cx, cy, R, n, col, wide) {
   c.fillStyle = col;
   for (let i = 0; i < n; i++) {
@@ -354,14 +399,27 @@ function drawCard() {
     c.font = 'italic 500 38px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('May your home be filled with light', W / 2, 370);
     nameY = H - 110;
   } else if (style === 'green') {
-    const t = impact.total;
-    c.fillStyle = 'rgba(10,30,18,0.78)'; c.fillRect(110, H - 470, W - 220, 250);
-    c.strokeStyle = '#53d88a'; c.lineWidth = 2; c.strokeRect(110, H - 470, W - 220, 250);
-    c.fillStyle = '#53d88a'; c.font = '600 34px "Chakra Petch", sans-serif'; spaced('MY SMOKE-FREE DIWALI', W / 2, H - 412, 6);
-    c.fillStyle = '#ffffff'; c.font = '500 40px Barlow, sans-serif';
-    c.fillText(`${Math.max(1, t.count)} crackers, zero smoke`, W / 2, H - 352);
-    c.fillText(`${fmtG(t.co2)} CO₂ · ${Math.round(t.smoke)} cigarettes' smoke saved`, W / 2, H - 296);
-    c.fillStyle = 'rgba(220,240,225,0.75)'; c.font = '28px Barlow, sans-serif'; c.fillText('Celebrate with light, not smoke', W / 2, H - 248);
+    const t = impact.total, got = BADGES.filter((x) => earned(x, t));
+    const g = c.createLinearGradient(0, H * 0.45, 0, H); g.addColorStop(0, 'rgba(4,30,22,0)'); g.addColorStop(0.35, 'rgba(4,30,22,0.82)'); g.addColorStop(1, 'rgba(3,18,14,0.96)');
+    c.fillStyle = g; c.fillRect(0, H * 0.45, W, H * 0.55);
+    const top = H - 640;
+    c.fillStyle = '#2ee59d'; c.font = '600 32px "Chakra Petch", sans-serif'; spaced('THIS DIWALI I SAVED', W / 2, top, 8);
+    c.shadowColor = 'rgba(46,229,157,0.6)'; c.shadowBlur = 30;
+    c.fillStyle = '#ffffff'; c.font = '700 150px "Chakra Petch", sans-serif'; c.fillText(fmtG(Math.max(t.co2, 0)), W / 2, top + 150);
+    c.shadowBlur = 0;
+    c.fillStyle = '#c9f5e2'; c.font = '600 40px "Chakra Petch", sans-serif'; spaced('OF CO₂ · ZERO SMOKE', W / 2, top + 210, 6);
+    const cells = [['🚬', `${Math.round(t.smoke)}`, "cigarettes' smoke"], ['🚗', `${(t.co2 / 120).toFixed(1)} km`, 'of car CO₂'], ['🎆', `${t.count}`, 'crackers, no pollution']];
+    cells.forEach(([icon, v, l], i) => {
+      const cx = W / 2 + (i - 1) * 300, cy = top + 300;
+      c.fillStyle = 'rgba(46,229,157,0.12)'; c.fillRect(cx - 135, cy - 50, 270, 140);
+      c.strokeStyle = 'rgba(46,229,157,0.5)'; c.lineWidth = 2; c.strokeRect(cx - 135, cy - 50, 270, 140);
+      c.font = '40px sans-serif'; c.fillText(icon, cx, cy);
+      c.fillStyle = '#ffffff'; c.font = '600 40px "Share Tech Mono", monospace'; c.fillText(v, cx, cy + 50);
+      c.fillStyle = '#a9d9c6'; c.font = '26px Barlow, sans-serif'; c.fillText(l, cx, cy + 80);
+    });
+    if (got.length) { c.font = '52px sans-serif'; c.fillText(got.map((x) => x.icon).join(' '), W / 2, top + 470); }
+    c.fillStyle = '#ffc857'; c.font = 'italic 500 36px Barlow, sans-serif'; c.fillText('Join me: celebrate with light, not smoke 🪔', W / 2, top + 530);
+    nameY = H - 115;
   }
   if (name) { c.shadowBlur = 16; c.font = '500 50px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('with love from ' + name, W / 2, nameY); }
   c.shadowBlur = 0; c.font = '28px "Share Tech Mono", monospace'; c.fillStyle = 'rgba(220,205,230,0.75)';
@@ -387,7 +445,7 @@ async function openCard() {
   }
   takeSnapshot();
   await Promise.all(['128px "Yatra One"', '700 64px "Chakra Petch"', '500 50px Barlow', '28px "Share Tech Mono"'].map((f) => document.fonts.load(f, 'शुभ दीपावली HAPPY').catch(() => {})));
-  if (!CARD_STYLES[settings.cardStyle]) settings.cardStyle = 'classic';
+  if (!CARD_STYLES[settings.cardStyle]) settings.cardStyle = 'green';
   renderCardStyles();
   drawCard();
   openSheet('#card');
@@ -403,7 +461,7 @@ $('#btnCardShare').addEventListener('click', () => {
         const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
         NATIVE.shareImage(b64);
       } else if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Happy Diwali', text: 'शुभ दीपावली! 🪔' });
+        await navigator.share({ files: [file], title: 'My Green Diwali', text: `शुभ दीपावली! 🪔 This Diwali I saved ${fmtG(impact.total.co2)} of CO₂ and the smoke of ${Math.round(impact.total.smoke)} cigarettes by bursting crackers on Patakha instead. Join me for a smoke-free Diwali 🌱` });
       } else {
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -419,17 +477,37 @@ function setTheme(id) {
   renderThemes();
   $('#optReal').checked = settings.realLight; $('#optShakeLight').checked = settings.shakeLight;
 }
+// Picker previews: each theme painted by a small off-screen Scene, one per idle slot.
+const thumbs = {};
+function themeThumb(id) {
+  if (thumbs[id]) return thumbs[id];
+  const W = 240, H = 150, sky = document.createElement('canvas'), props = document.createElement('canvas');
+  const sc = new Scene(sky, props);
+  sc.theme = id; sc.resize(W, H, 1, 14); sc.beginFrame(performance.now());
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const c = out.getContext('2d'); c.drawImage(sky, 0, 0, W, H); c.drawImage(props, 0, 0, W, H);
+  return (thumbs[id] = out.toDataURL('image/jpeg', 0.82));
+}
 function renderThemes() {
+  const pending = [];
   for (const box of [$('#themes'), $('#themeStrip')]) {
     box.innerHTML = '';
     for (const [id, t] of Object.entries(THEMES)) {
       const b = document.createElement('button');
-      b.className = 'theme cut'; b.setAttribute('aria-pressed', String(settings.theme === id));
+      b.className = 'theme thumb cut'; b.setAttribute('aria-pressed', String(settings.theme === id));
+      b.setAttribute('aria-label', `${t.name} background`);
       b.innerHTML = `<i style="background:linear-gradient(${t.sky[0]},${t.sky[2]} 60%,${t.wall[0]} 62%,${t.floor[1]})"></i><b>${t.name}</b><span lang="hi">${t.hi}</span>`;
       b.addEventListener('click', () => { setTheme(id); if (box.id === 'themeStrip' && window.innerHeight < 500) setTimeout(() => { $('#themeBar').hidden = true; }, 350); });
       box.appendChild(b);
+      pending.push([b.querySelector('i'), id]);
     }
   }
+  const next = () => {
+    const job = pending.shift(); if (!job) return;
+    job[0].style.backgroundImage = `url(${themeThumb(job[1])})`;
+    (thumbs[pending[0]?.[1]] ? next : () => setTimeout(next, 16))();
+  };
+  next();
 }
 $('#btnTheme').addEventListener('click', () => { const bar = $('#themeBar'); bar.hidden = !bar.hidden; if (!bar.hidden) { renderThemes(); bar.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }); } });
 $('#themeBarClose').addEventListener('click', () => { $('#themeBar').hidden = true; });
@@ -463,24 +541,31 @@ window.addEventListener('devicemotion', (e) => {
 // ------------------------------------------------------------------ green impact
 let impKey = 'tonight';
 function renderImpact() {
-  const t = impact[impKey], pm = t.pm;
-  const phones = Math.round(t.co2 / 8), treeDays = t.co2 / 58;
-  $('#impStats').innerHTML = [
-    [t.count, 'crackers burst, with zero smoke'],
-    [fmtG(t.co2), `CO₂ kept out of the air (≈ ${phones} phone charges)`],
-    [Math.round(t.smoke), "cigarettes' worth of smoke nobody had to breathe"],
-    [treeDays >= 1 ? treeDays.toFixed(1) : treeDays.toFixed(2), "days of a tree's work absorbing that CO₂"],
-  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  const t = impact[impKey], pm = t.pm, n = nextStep(impact.total.co2);
+  const k = n ? (impact.total.co2 - n.from) / (n.to - n.from) : 1;
+  $('#impHero').innerHTML = `<div class="big-ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="#2ee59d" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="${94.25 * (1 - k)}"/></svg><div><b>${fmtG(t.co2)}</b><span>CO₂ saved</span></div></div>
+    <div><h4>${t.count ? (impKey === 'tonight' ? 'Tonight you kept the air clean' : 'Your Green Diwali so far') : 'Light a cracker to start saving'}</h4>
+    <p>${t.count ? `${t.count} crackers, zero smoke. That's ${fmtG(t.co2)} of CO₂ and the smoke of <b>${Math.round(t.smoke)} cigarettes</b> that nobody had to breathe.` : 'Every cracker you light here is one real cracker that stays out of the air.'}
+    ${n ? `<br/><span class="muted">Next badge: ${n.badge.icon} ${n.badge.name} at ${fmtG(n.to)}.</span>` : ''}</p></div>`;
+  const km = t.co2 / 120, phones = t.co2 / 8, treeDays = t.co2 / 58;
+  const fmt = (v) => (v >= 10 ? Math.round(v).toLocaleString('en-IN') : v.toFixed(1));
+  $('#impEquiv').innerHTML = [
+    ['🚬', Math.round(t.smoke), "cigarettes' smoke nobody breathed"],
+    ['🚗', fmt(km) + ' km', 'of car driving, in CO₂'],
+    ['📱', fmt(phones), 'phone charges, in CO₂'],
+    ['🌳', fmt(treeDays), "days of a tree's work"],
+  ].map(([i, v, l]) => `<div><i aria-hidden="true">${i}</i><p style="margin:0"><b>${v}</b><span>${l}</span></p></div>`).join('');
+  $('#impBadges').innerHTML = BADGES.map((b) => `<div class="badge${earned(b, impact.total) ? ' got' : ''}"><i aria-hidden="true">${b.icon}</i><b>${b.name}</b><span>${b.need}</span></div>`).join('');
   const notes = [];
   if (pm) {
-    notes.push(`<p>Air quality: the dirtiest of your crackers would have pushed PM2.5 next to you to about <b>${pm.toLocaleString('en-IN')} µg/m³</b>. That is <b>${Math.round(pm / 250)}×</b> the level where India's AQI turns <b>Severe</b> (250 µg/m³), and <b>${Math.round(pm / 60)}×</b> India's safe limit (60 µg/m³ over 24 hours). The spike is short, but it goes straight into the lungs of whoever is standing closest, often children.</p>`);
+    notes.push(`<p>Air quality: the smokiest of your crackers would have pushed PM2.5 next to you to about <b>${pm.toLocaleString('en-IN')} µg/m³</b>. That is <b>${Math.round(pm / 250)}×</b> the level where India's AQI turns <b>Severe</b> (250 µg/m³), and <b>${Math.round(pm / 60)}×</b> India's safe limit (60 µg/m³ over 24 hours). The spike is short, but it goes straight into the lungs of whoever is standing closest, often children.</p>`);
     notes.push('<div class="aqi" aria-hidden="true"><i style="background:#3fbf5f"></i><i style="background:#9acd32"></i><i style="background:#f2d335"></i><i style="background:#f29a2e"></i><i style="background:#e8452e"></i><i style="background:#8b1a3a"></i></div>');
   }
-  if (t.count) notes.push(`<p>You also spared your street ${t.count > 20 ? 'a long night' : 'some'} of bangs that frighten babies, older people, patients and animals. India limits cracker noise to 125 dB(AI) measured 4 m away, and big bombs often go past it.</p>`);
-  else notes.push('<p>Burst a few crackers and come back to see the difference you are making.</p>');
+  if (t.loud) notes.push(`<p>You also spared your street <b>${t.loud} loud bang${t.loud === 1 ? '' : 's'}</b> that frighten babies, older people, patients and animals. India limits cracker noise to 125 dB(AI) measured 4 m away, and big bombs often go past it.</p>`);
   $('#impNotes').innerHTML = notes.join('');
   document.querySelectorAll('#impSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === impKey)));
 }
+$('#btnShareImpact').addEventListener('click', () => { closeSheet('#impact'); settings.cardStyle = 'green'; save(); openCard(); });
 $('#btnImpact').addEventListener('click', () => { renderImpact(); openSheet('#impact'); });
 document.querySelectorAll('#impSeg button').forEach((b) => b.addEventListener('click', () => { impKey = b.dataset.k; renderImpact(); }));
 
@@ -745,7 +830,7 @@ function start() {
   Mic.sensitivity = settings.micSens; setMuted(settings.muted); setLighter(LIGHTERS[settings.lighter] ? settings.lighter : 'agarbatti');
   if (!THEMES[settings.theme]) settings.theme = 'city';
   scene.setTheme(settings.theme);
-  $('#litCount').textContent = '0'; $('#co2Count').textContent = '0 g';
+  updateEcoMeter();
   renderTray(); resize(); select(settings.sel);
   requestAnimationFrame((t) => { last = t; frame(t); });
   prewarm();

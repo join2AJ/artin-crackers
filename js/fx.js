@@ -146,7 +146,7 @@ export class Sparks {
     p.age = 0; p.life = o.life || 1; p.colour = o.colour || '#ffd27a'; p.size = o.size || 1.5;
     p.drag = o.drag ?? 1; p.grav = o.grav ?? 200; p.floor = o.floor ?? Infinity; p.bounce = o.bounce ?? 0;
     p.split = o.split || 0; p.crackle = !!o.crackle; p.trail = o.trail || 0; p.alpha = o.alpha ?? 1; p.flicker = !!o.flicker;
-    p.tcol = o.tcol || '#ffb347'; p.dot = !!o.dot;
+    p.tcol = o.tcol || '#ffb347'; p.dot = !!o.dot; p.glow = !!o.glow;
     this.list.push(p);
     return p;
   }
@@ -198,7 +198,13 @@ export class Sparks {
         c.fillStyle = p.colour; c.beginPath(); c.arc(p.x, p.y, p.size * (0.5 + k), 0, Math.PI * 2); c.fill();
         continue;
       }
-      c.strokeStyle = p.colour; c.lineWidth = p.size;
+      c.strokeStyle = p.colour;
+      if (p.glow) { // soft halo around firework stars
+        c.globalAlpha = a * 0.22; c.lineWidth = p.size * 3.4;
+        c.beginPath(); c.moveTo(p.px, p.py); c.lineTo(p.x + 0.01, p.y); c.stroke();
+        c.globalAlpha = a;
+      }
+      c.lineWidth = p.size;
       c.beginPath(); c.moveTo(p.px, p.py); c.lineTo(p.x + 0.01, p.y); c.stroke();
     }
     c.globalAlpha = 1;

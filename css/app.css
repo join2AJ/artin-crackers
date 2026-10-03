@@ -1,19 +1,24 @@
-/* Patakha — ARTIN Studios. Dark tactical panels with cut corners; one accent: marigold. */
+/* Patakha — ARTIN Studios. Frosted-glass panels with small cut corners.
+   Emerald = the green-Diwali highlight (eco, primary actions); gold = festive fire and Hindi. */
 :root {
-  --bg: #07040f;
-  --panel: rgba(19, 12, 32, 0.9);
-  --panel-2: #1b1129;
-  --line: rgba(255, 182, 39, 0.18);
-  --text: #f6ecdf;
-  --muted: #bcaec8;
-  --dim: #7f7090;
-  --acc: #ffb627;
-  --acc-2: #ff7a1a;
-  --acc-ink: #1d0f00;
-  --acc-soft: rgba(255, 182, 39, 0.13);
-  --pink: #ff3d7f;
-  --green: #53d88a;
-  --cut: 10px;
+  --bg: #050912;
+  --panel: rgba(12, 20, 36, 0.62);
+  --panel-solid: #0e1626;
+  --panel-2: #121c30;
+  --line: rgba(150, 255, 215, 0.14);
+  --text: #eef6f2;
+  --muted: #a9bbb5;
+  --dim: #6c7f7a;
+  --acc: #2ee59d;
+  --acc-2: #18c7c0;
+  --acc-ink: #02160e;
+  --acc-soft: rgba(46, 229, 157, 0.14);
+  --gold: #ffc857;
+  --gold-soft: rgba(255, 200, 87, 0.16);
+  --pink: #ff5c8a;
+  --green: #2ee59d;
+  --glass: blur(14px) saturate(150%);
+  --cut: 8px;
   --f-brand: 'Chakra Petch', 'Rajdhani', system-ui, sans-serif;
   --f-ui: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --f-mono: 'Share Tech Mono', ui-monospace, monospace;
@@ -70,7 +75,7 @@ a { color: var(--acc); }
 }
 .icon-btn svg { width: 20px; height: 20px; }
 .icon-btn:active { transform: scale(0.93); }
-.icon-btn[aria-pressed='true'] { background: var(--acc); color: var(--acc-ink); box-shadow: 0 0 18px rgba(255, 182, 39, 0.45); }
+.icon-btn[aria-pressed='true'] { background: var(--acc); color: var(--acc-ink); box-shadow: 0 0 18px rgba(46, 229, 157, 0.45); }
 .icon-btn.sm { width: 34px; height: 34px; --cut: 6px; }
 .icon-btn.sm svg { width: 16px; height: 16px; }
 
@@ -104,9 +109,9 @@ a { color: var(--acc); }
 }
 .cr svg.art { width: 40px; height: 40px; }
 .cr .nm { font-family: var(--f-brand); font-weight: 700; font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.1; white-space: nowrap; }
-.cr .hi { font-family: var(--f-hi); font-size: 12px; color: var(--acc); line-height: 1.2; }
+.cr .hi { font-family: var(--f-hi); font-size: 12px; color: var(--gold); line-height: 1.2; }
 .cr:active { transform: scale(0.95); }
-.cr[aria-pressed='true'] { background: linear-gradient(180deg, rgba(255, 182, 39, 0.22), rgba(255, 122, 26, 0.12)); box-shadow: inset 0 0 0 1.5px var(--acc), 0 0 22px rgba(255, 182, 39, 0.25); }
+.cr[aria-pressed='true'] { background: linear-gradient(180deg, rgba(255, 200, 87, 0.26), rgba(255, 140, 60, 0.1)); box-shadow: inset 0 0 0 1.5px var(--gold), 0 0 24px rgba(255, 200, 87, 0.3); }
 .cr .lock { position: absolute; top: 5px; right: 6px; width: 15px; height: 15px; color: var(--acc); }
 .cr .timer { position: absolute; top: 4px; left: 6px; font-family: var(--f-mono); font-size: 9.5px; color: var(--green); }
 .cr.locked svg.art { opacity: 0.55; filter: saturate(0.6); }
@@ -118,7 +123,8 @@ a { color: var(--acc); }
 }
 .sheet {
   --cut: 16px; width: min(520px, 100%); max-height: 100%; overflow-y: auto; padding: 18px 18px 20px; touch-action: pan-y;
-  background: linear-gradient(180deg, #1a1029, #110a1c); box-shadow: inset 0 0 0 1px var(--line);
+  background: linear-gradient(180deg, rgba(18, 30, 50, 0.92), rgba(8, 14, 26, 0.95)); box-shadow: inset 0 0 0 1px var(--line), 0 24px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
   user-select: text; -webkit-user-select: text;
 }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -143,7 +149,7 @@ a { color: var(--acc); }
 
 .btn-primary {
   --cut: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; border: 0; padding: 15px 18px; margin-top: 16px;
-  background: linear-gradient(180deg, #ffc84a, var(--acc) 50%, #f29a12); color: var(--acc-ink);
+  background: linear-gradient(135deg, #5cf2b8, var(--acc) 45%, var(--acc-2)); color: var(--acc-ink); box-shadow: 0 8px 26px rgba(46, 229, 157, 0.28);
   font-family: var(--f-brand); font-weight: 700; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase;
 }
 .btn-primary svg { width: 16px; height: 16px; }
@@ -178,7 +184,7 @@ a { color: var(--acc); }
 .feat b { color: var(--text); font-weight: 600; }
 .fine { color: var(--dim); font-size: 12px; margin: 12px 0 0; text-align: center; }
 
-.unlock .un-art { display: grid; place-items: center; height: 110px; background: radial-gradient(ellipse at 50% 70%, rgba(255, 182, 39, 0.16), transparent 65%); }
+.unlock .un-art { display: grid; place-items: center; height: 110px; background: radial-gradient(ellipse at 50% 70%, rgba(46, 229, 157, 0.16), transparent 65%); }
 .unlock .un-art svg { width: 84px; height: 84px; }
 .unlock .un-art .hi { font-family: var(--f-hi); color: var(--acc); font-size: 18px; }
 
@@ -199,8 +205,8 @@ a { color: var(--acc); }
 .rail .icon-btn svg { width: 19px; height: 19px; }
 #btnMute[aria-pressed='true'] { background: var(--pink); color: #fff; box-shadow: 0 0 18px rgba(255, 61, 127, 0.5); }
 #btnShow[aria-pressed='true'] { animation: pulse 1.2s infinite; }
-@keyframes pulse { 50% { box-shadow: 0 0 26px rgba(255, 182, 39, 0.8); } }
-.mic-pill.hot { box-shadow: inset 0 0 0 1px var(--acc), 0 0 18px rgba(255, 182, 39, 0.35); color: var(--text); }
+@keyframes pulse { 50% { box-shadow: 0 0 26px rgba(46, 229, 157, 0.8); } }
+.mic-pill.hot { box-shadow: inset 0 0 0 1px var(--acc), 0 0 18px rgba(46, 229, 157, 0.35); color: var(--text); }
 
 /* ============================================================ THEMES */
 .themes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -276,7 +282,7 @@ button.tally { border: 0; cursor: pointer; }
 /* ============================================================ SPLASH */
 .splash {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
-  background: radial-gradient(ellipse at 50% 45%, #2a0f33 0%, #0b0614 55%, #05030a 100%); transition: opacity 0.25s;
+  background: radial-gradient(ellipse at 50% 40%, #13324a 0%, #081525 50%, #03070d 100%); transition: opacity 0.25s;
 }
 .splash.out { opacity: 0; pointer-events: none; }
 .splash-in { display: grid; justify-items: center; gap: 4px; }
@@ -338,3 +344,80 @@ button.tally { border: 0; cursor: pointer; }
   .cr { width: 96px; height: 100px; }
   .cr svg.art { width: 46px; height: 46px; }
 }
+
+/* ============================================================ v0.4: glass + eco */
+.icon-btn, .tally, .cr, .mic-pill, .rail .icon-btn { backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass); }
+.icon-btn { background: var(--panel); }
+.tray { background: linear-gradient(0deg, rgba(3, 7, 14, 0.94) 50%, transparent); }
+.cr { background: rgba(14, 22, 38, 0.66); }
+.hud { background: linear-gradient(180deg, rgba(3, 7, 14, 0.78), transparent); }
+.sheet-wrap { background: rgba(2, 6, 12, 0.55); }
+.row, .product, .theme, .stat, .bx { background: rgba(10, 18, 32, 0.8); }
+.eyebrow, .sheet h4 { color: var(--acc); }
+.welcome h2 em { color: var(--gold); }
+.countdown { background: linear-gradient(90deg, rgba(255, 200, 87, 0.16), rgba(46, 229, 157, 0.12)); }
+.countdown b, .days td:first-child, .about-diwali summary { color: var(--gold); }
+.splash-hi, .fg-hi, .bx .hi, .man-art .hi, .unlock .un-art .hi { color: var(--gold); }
+.splash-tag { font-family: var(--f-brand); font-weight: 600; font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--acc); opacity: 0; animation: rise 0.28s 0.36s ease-out forwards; display: flex; align-items: center; gap: 6px; }
+.splash-tag svg { width: 13px; height: 13px; }
+
+/* eco meter in the top bar */
+.eco {
+  --cut: 8px; display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 6px; border: 0; cursor: pointer;
+  background: linear-gradient(90deg, rgba(46, 229, 157, 0.2), rgba(12, 20, 36, 0.7)); box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.35);
+  backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass); color: var(--text); text-align: left;
+}
+.eco .ring { position: relative; width: 32px; height: 32px; flex: none; }
+.eco .ring svg { position: absolute; inset: 0; width: 32px; height: 32px; transform: rotate(-90deg); }
+.eco .ring .leaf { position: absolute; inset: 8px; width: 16px; height: 16px; transform: none; color: var(--acc); }
+.eco b { display: block; font-family: var(--f-mono); font-weight: 400; font-size: 16px; color: var(--acc); line-height: 1; }
+.eco small { display: block; font-size: 10.5px; color: var(--muted); letter-spacing: 0.04em; margin-top: 2px; white-space: nowrap; }
+.eco.pulse { animation: ecoPulse 0.6s ease-out; }
+@keyframes ecoPulse { 30% { box-shadow: inset 0 0 0 1px var(--acc), 0 0 26px rgba(46, 229, 157, 0.6); } }
+.plus {
+  position: fixed; z-index: 9; pointer-events: none; font-family: var(--f-mono); font-size: 14px; color: var(--acc);
+  text-shadow: 0 0 10px rgba(46, 229, 157, 0.8), 0 1px 3px #000; white-space: nowrap; transform: translate(-50%, 0);
+}
+.plus svg { width: 11px; height: 11px; vertical-align: -1px; }
+
+/* impact sheet */
+.impact-hero { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin: 6px 0 4px; }
+.impact-hero .big-ring { position: relative; width: 110px; height: 110px; }
+.impact-hero .big-ring svg { width: 110px; height: 110px; transform: rotate(-90deg); }
+.impact-hero .big-ring div { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.impact-hero .big-ring b { font-family: var(--f-mono); font-weight: 400; font-size: 24px; color: var(--acc); }
+.impact-hero .big-ring span { font-size: 11px; color: var(--muted); }
+.impact-hero h4 { margin: 0 0 4px; }
+.impact-hero p { margin: 0; color: #d6e6e0; font-size: 14.5px; line-height: 1.5; }
+.equiv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+.equiv div { --cut: 8px; display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: center; padding: 10px; background: rgba(10, 18, 32, 0.8); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.equiv i { font-style: normal; font-size: 22px; text-align: center; }
+.equiv b { display: block; font-family: var(--f-mono); font-weight: 400; color: var(--text); font-size: 17px; }
+.equiv span { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.badge { text-align: center; padding: 10px 6px; background: rgba(10, 18, 32, 0.8); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.badge i { display: block; font-style: normal; font-size: 26px; filter: grayscale(1) opacity(0.35); }
+.badge b { display: block; font-family: var(--f-brand); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 4px; color: var(--dim); }
+.badge span { font-size: 11px; color: var(--dim); }
+.badge.got { box-shadow: inset 0 0 0 1.5px var(--acc), 0 0 18px rgba(46, 229, 157, 0.2); }
+.badge.got i { filter: none; }
+.badge.got b { color: var(--acc); }
+.milestone {
+  position: fixed; z-index: 45; left: 50%; top: 22%; transform: translate(-50%, -10px) scale(0.92); opacity: 0; pointer-events: none;
+  padding: 16px 22px; text-align: center; background: linear-gradient(135deg, rgba(10, 40, 30, 0.92), rgba(8, 20, 34, 0.92));
+  box-shadow: inset 0 0 0 1.5px var(--acc), 0 0 40px rgba(46, 229, 157, 0.35); backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); transition: opacity 0.3s, transform 0.3s;
+}
+.milestone.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.milestone i { font-style: normal; font-size: 40px; display: block; }
+.milestone b { display: block; font-family: var(--f-brand); letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); font-size: 16px; margin-top: 4px; }
+.milestone span { color: #d6e6e0; font-size: 13.5px; }
+.theme i { background-size: cover !important; background-position: center 38% !important; }
+.theme.thumb i { height: 54px; }
+@media (max-height: 500px) {
+  .eco { padding: 3px 10px 3px 4px; }
+  .eco .ring, .eco .ring svg { width: 26px; height: 26px; }
+  .eco .ring .leaf { inset: 6px; width: 14px; height: 14px; }
+  .theme.thumb i { height: 34px; }
+}
+@media (max-width: 420px) { .eco small { display: none; } .eco b { font-size: 14px; } }

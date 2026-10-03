@@ -126,11 +126,21 @@ export class Scene {
       c.strokeStyle = 'rgba(70,120,80,0.22)'; c.lineWidth = 1;
       for (let i = 0; i < (w * (h - this.floorTop)) / 260; i++) { const x = r() * w, y = this.floorTop + r() * (h - this.floorTop), l = (2 + r() * 4) * u * this.depth(y); c.beginPath(); c.moveTo(x, y); c.lineTo(x + (r() - 0.5) * 2 * u, y - l); c.stroke(); }
     }
-    if (T.rangoli) this.rangoli(c, w / 2, (this.placeTop + this.placeBottom) / 2, Math.min(w * 0.22, 95 * u));
+    this.rangoliR = Math.min(w * 0.22, 95 * u, (this.placeBottom - this.placeTop) * 1.1 + 30 * u); this.rangoliY = (this.placeTop + this.placeBottom) / 2;
+    if (T.rangoli) this.rangoli(c, w / 2, this.rangoliY, this.rangoliR);
 
-    const prev = this.diyas;
-    const n = Math.max(5, Math.floor(w / (48 * u)));
-    this.diyas = Array.from({ length: n }, (_, i) => ({ x: (w / n) * (i + 0.5), y: H, lit: prev[i] ? prev[i].lit : true, ph: r() * 6, out: 0 }));
+    // diyas: in pairs along the wall, and a ring around the rangoli on the floor
+    const prev = this.diyas, list = [];
+    const pairs = Math.max(3, Math.floor(w / (92 * u)));
+    for (let i = 0; i < pairs; i++) { const cx = (w / pairs) * (i + 0.5); list.push({ x: cx - 9 * u, y: H, s: 0.9 }, { x: cx + 9 * u, y: H, s: 0.9 }); }
+    if (T.rangoli) {
+      const R = this.rangoliR * 1.28, cy = this.rangoliY;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + Math.PI / 8, x = w / 2 + Math.cos(a) * R, y = cy + Math.sin(a) * R * 0.38;
+        if (x > 14 * u && x < w - 14 * u) list.push({ x, y, s: 1.05 * this.depth(y), floor: true });
+      }
+    }
+    this.diyas = list.map((d, i) => ({ ...d, lit: prev[i] ? prev[i].lit : true, ph: r() * 6, out: 0 }));
   }
 
   /** Strings of toran lights between rooftops. */
@@ -534,34 +544,60 @@ export class Scene {
     return tops;
   }
 
+  /** A coloured-powder rangoli, painted flat at high detail then laid on the floor in perspective. */
   rangoli(c, cx, cy, R) {
-    c.save(); c.translate(cx, cy); c.scale(1, 0.36); c.globalAlpha = 0.5;
-    const ring = (n, r1, r2, col, wide) => {
-      c.fillStyle = col;
+    const S = Math.ceil(R * 2.5 * this.dpr), off = document.createElement('canvas'); off.width = off.height = S;
+    const g = off.getContext('2d'), k = S / 2 / (R * 1.2);
+    g.translate(S / 2, S / 2); g.scale(k, k);
+    const petals = (n, r1, r2, wide, c1, c2, rot = 0, edge = null) => {
       for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        c.save(); c.rotate(a); c.beginPath(); c.moveTo(r1, 0);
-        c.quadraticCurveTo((r1 + r2) / 2, -wide, r2, 0); c.quadraticCurveTo((r1 + r2) / 2, wide, r1, 0); c.fill(); c.restore();
+        g.save(); g.rotate((i / n) * Math.PI * 2 + rot);
+        const gr = g.createLinearGradient(r1, 0, r2, 0); gr.addColorStop(0, c1); gr.addColorStop(1, c2);
+        g.fillStyle = gr; g.beginPath(); g.moveTo(r1, 0); g.bezierCurveTo(r1 + (r2 - r1) * 0.3, -wide, r1 + (r2 - r1) * 0.75, -wide * 0.9, r2, 0);
+        g.bezierCurveTo(r1 + (r2 - r1) * 0.75, wide * 0.9, r1 + (r2 - r1) * 0.3, wide, r1, 0); g.fill();
+        if (edge) { g.strokeStyle = edge; g.lineWidth = R * 0.012; g.stroke(); }
+        g.restore();
       }
     };
-    c.fillStyle = '#2a1238'; c.beginPath(); c.arc(0, 0, R * 1.04, 0, Math.PI * 2); c.fill();
-    ring(16, R * 0.62, R, '#ff4f8b', R * 0.12);
-    ring(16, R * 0.62, R * 0.9, '#ffcc33', R * 0.05);
-    ring(10, R * 0.3, R * 0.64, '#2ecc71', R * 0.13);
-    ring(10, R * 0.32, R * 0.56, '#3fa9f5', R * 0.05);
-    c.fillStyle = '#ff9933'; c.beginPath(); c.arc(0, 0, R * 0.26, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#fff3d6';
-    for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; c.beginPath(); c.arc(Math.cos(a) * R * 1.1, Math.sin(a) * R * 1.1, R * 0.025, 0, Math.PI * 2); c.fill(); }
-    c.beginPath(); c.arc(0, 0, R * 0.09, 0, Math.PI * 2); c.fill();
+    const dots = (n, r, size, col) => { g.fillStyle = col; for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, size, 0, Math.PI * 2); g.fill(); } };
+    const ring = (r, wdt, col) => { g.strokeStyle = col; g.lineWidth = wdt; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); };
+    // base wash
+    const base = g.createRadialGradient(0, 0, 0, 0, 0, R * 1.08);
+    base.addColorStop(0, '#3b1650'); base.addColorStop(0.8, '#2a0f3a'); base.addColorStop(1, 'rgba(42,15,58,0)');
+    g.fillStyle = base; g.beginPath(); g.arc(0, 0, R * 1.08, 0, Math.PI * 2); g.fill();
+    petals(16, R * 0.66, R * 1.02, R * 0.13, '#ff2e7e', '#ff8ab8', 0, 'rgba(255,240,250,0.85)');
+    petals(16, R * 0.7, R * 0.92, R * 0.06, '#ffb300', '#ffe680', Math.PI / 16);
+    dots(32, R * 1.1, R * 0.022, '#fff4dc');
+    dots(16, R * 1.04, R * 0.03, '#ffd23f');
+    ring(R * 0.64, R * 0.025, '#fff4dc');
+    // eight-pointed star
+    for (const rot of [0, Math.PI / 4]) {
+      g.save(); g.rotate(rot);
+      g.fillStyle = rot ? '#14c3a6' : '#0e9c86'; g.fillRect(-R * 0.42, -R * 0.42, R * 0.84, R * 0.84);
+      g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = R * 0.012; g.strokeRect(-R * 0.42, -R * 0.42, R * 0.84, R * 0.84);
+      g.restore();
+    }
+    petals(8, R * 0.1, R * 0.4, R * 0.1, '#5b5bff', '#b28dff', 0, 'rgba(255,255,255,0.7)');
+    petals(8, R * 0.12, R * 0.3, R * 0.07, '#ff7a1a', '#ffd166', Math.PI / 8);
+    const mid = g.createRadialGradient(0, 0, 0, 0, 0, R * 0.14); mid.addColorStop(0, '#fff7d6'); mid.addColorStop(1, '#ff9a1a');
+    g.fillStyle = mid; g.beginPath(); g.arc(0, 0, R * 0.14, 0, Math.PI * 2); g.fill();
+    dots(8, R * 0.2, R * 0.018, '#ffffff');
+    // powder grain
+    const rr = rng(77);
+    for (let i = 0; i < 1400; i++) { const a = rr() * Math.PI * 2, d = Math.sqrt(rr()) * R * 1.05; g.fillStyle = rr() < 0.5 ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.14)'; g.fillRect(Math.cos(a) * d, Math.sin(a) * d, R * 0.01, R * 0.01); }
+    c.save(); c.globalAlpha = 0.85;
+    c.drawImage(off, cx - R * 1.2, cy - R * 1.2 * 0.38, R * 2.4, R * 2.4 * 0.38);
     c.restore();
   }
 
   /** Index of the diya nearest to a tap on the parapet, or -1. */
   diyaAt(x, y) {
-    const dy = y - this.horizon;
-    if (dy < -24 * this.u || dy > 8 * this.u) return -1;
-    let best = -1, bd = 16 * this.u;
-    this.diyas.forEach((d, i) => { const dd = Math.abs(d.x - x); if (dd < bd) { bd = dd; best = i; } });
+    const u = this.u;
+    let best = -1, bd = Infinity;
+    this.diyas.forEach((d, i) => {
+      const dx = Math.abs(d.x - x), dy = y - d.y, s = d.s || 1;
+      if (dx < 9 * u * s && dy > -20 * u * s && dy < 5 * u * s && dx < bd) { bd = dx; best = i; }
+    });
     return best;
   }
   get litCount() { return this.diyas.filter((d) => d.lit).length; }
@@ -600,35 +636,59 @@ export class Scene {
     this.drawLiving(c, now);
   }
 
+  /** A clay diya seen from the front: glazed bowl with a painted rim, an oil pool and a layered flame. */
   drawDiya(c, d, now) {
-    const u = this.u, x = d.x, y = d.y;
+    const u = this.u * (d.s || 1), x = d.x, y = d.y, t = now / 1000;
     if (d.lit) {
-      const g = c.createRadialGradient(x, y - 4 * u, 0, x, y - 4 * u, 34 * u);
-      g.addColorStop(0, 'rgba(255,170,70,0.38)'); g.addColorStop(1, 'rgba(255,120,40,0)');
-      c.fillStyle = g; c.fillRect(x - 34 * u, y - 38 * u, 68 * u, 68 * u);
+      const fl = 1 + Math.sin(t * 9 + d.ph) * 0.06;
+      let g = c.createRadialGradient(x, y - 8 * u, 0, x, y - 8 * u, 40 * u * fl);
+      g.addColorStop(0, 'rgba(255,180,80,0.42)'); g.addColorStop(0.5, 'rgba(255,140,50,0.12)'); g.addColorStop(1, 'rgba(255,120,40,0)');
+      c.fillStyle = g; c.fillRect(x - 40 * u, y - 48 * u, 80 * u, 80 * u);
+      c.save(); c.translate(x, y + 2 * u); c.scale(1, 0.32);
+      g = c.createRadialGradient(0, 0, 0, 0, 0, 26 * u); g.addColorStop(0, 'rgba(255,170,70,0.5)'); g.addColorStop(1, 'rgba(255,170,70,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(0, 0, 26 * u, 0, Math.PI * 2); c.fill(); c.restore();
     }
-    // clay lamp
-    c.fillStyle = '#9c4422';
-    c.beginPath(); c.moveTo(x - 9 * u, y - 3 * u); c.quadraticCurveTo(x, y + 6 * u, x + 9 * u, y - 3 * u); c.lineTo(x + 12 * u, y - 5 * u); c.quadraticCurveTo(x + 8 * u, y - 1.5 * u, x + 5 * u, y - 3 * u); c.closePath(); c.fill();
-    c.fillStyle = '#c96a3a'; c.beginPath(); c.ellipse(x, y - 3 * u, 9 * u, 2.2 * u, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#3a1608'; c.beginPath(); c.ellipse(x, y - 3 * u, 6.5 * u, 1.3 * u, 0, 0, Math.PI * 2); c.fill();
-    const fx = x + 9.5 * u, fy = y - 5.5 * u;
+    // bowl
+    let g = c.createLinearGradient(x, y - 4 * u, x, y + 4 * u);
+    g.addColorStop(0, '#c4602e'); g.addColorStop(1, '#6e2a12');
+    c.fillStyle = g;
+    c.beginPath(); c.moveTo(x - 10 * u, y - 3.5 * u); c.bezierCurveTo(x - 8 * u, y + 4.5 * u, x + 8 * u, y + 4.5 * u, x + 10 * u, y - 3.5 * u); c.closePath(); c.fill();
+    // painted band and dots
+    c.strokeStyle = '#ffcf4a'; c.lineWidth = 0.9 * u;
+    c.beginPath(); c.moveTo(x - 8.4 * u, y - 0.6 * u); c.quadraticCurveTo(x, y + 2.6 * u, x + 8.4 * u, y - 0.6 * u); c.stroke();
+    c.fillStyle = '#fff3d6';
+    for (let i = -2; i <= 2; i++) { c.beginPath(); c.arc(x + i * 3.2 * u, y + 1.6 * u - Math.abs(i) * 0.7 * u, 0.55 * u, 0, Math.PI * 2); c.fill(); }
+    // rim with a pinched spout at the front
+    c.fillStyle = '#e07a40';
+    c.beginPath(); c.ellipse(x, y - 3.5 * u, 10 * u, 2.6 * u, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.moveTo(x - 2.4 * u, y - 2.2 * u); c.quadraticCurveTo(x, y + 0.4 * u, x + 2.4 * u, y - 2.2 * u); c.fill();
+    // oil pool
+    g = c.createLinearGradient(x - 7 * u, 0, x + 7 * u, 0);
+    g.addColorStop(0, '#5a2a08'); g.addColorStop(0.5, d.lit ? '#d9a032' : '#7a4a18'); g.addColorStop(1, '#5a2a08');
+    c.fillStyle = g; c.beginPath(); c.ellipse(x, y - 3.6 * u, 7.6 * u, 1.6 * u, 0, 0, Math.PI * 2); c.fill();
+    // wick
+    const fx = x, fy = y - 2.6 * u;
+    c.strokeStyle = '#2a1a10'; c.lineWidth = 0.9 * u; c.beginPath(); c.moveTo(fx, fy); c.lineTo(fx, fy - 1.8 * u); c.stroke();
     if (d.lit) {
-      const t = now / 1000, fl = Math.sin(t * 13 + d.ph) * 0.08 + Math.sin(t * 29 + d.ph * 2) * 0.05;
-      const lean = this.wind * (0.6 + 0.4 * Math.sin(t * 40 + d.ph)) * 5 * u;
-      const fh = 9 * u * (1 + fl - this.wind * 0.35);
-      const g = c.createRadialGradient(fx, fy - fh * 0.35, 0, fx, fy - fh * 0.35, fh * 0.75);
-      g.addColorStop(0, '#fffbe6'); g.addColorStop(0.35, '#ffd36b'); g.addColorStop(1, 'rgba(255,110,30,0)');
-      c.fillStyle = g;
-      c.beginPath(); c.moveTo(fx - 2.6 * u, fy);
-      c.quadraticCurveTo(fx - 3 * u, fy - fh * 0.5, fx + lean, fy - fh);
-      c.quadraticCurveTo(fx + 3 * u, fy - fh * 0.5, fx + 2.6 * u, fy); c.closePath(); c.fill();
+      const fl = Math.sin(t * 13 + d.ph) * 0.08 + Math.sin(t * 29 + d.ph * 2) * 0.05;
+      const lean = this.wind * (0.6 + 0.4 * Math.sin(t * 40 + d.ph)) * 5 * u + Math.sin(t * 3 + d.ph) * 0.4 * u;
+      const fh = 11 * u * (1 + fl - this.wind * 0.35), base = fy - 1.2 * u;
+      const flame = (wd, hgt, col) => {
+        c.fillStyle = col; c.beginPath(); c.moveTo(fx - wd, base);
+        c.bezierCurveTo(fx - wd * 1.3, base - hgt * 0.45, fx + lean * 0.4 - wd * 0.3, base - hgt * 0.8, fx + lean, base - hgt);
+        c.bezierCurveTo(fx + lean * 0.4 + wd * 0.3, base - hgt * 0.8, fx + wd * 1.3, base - hgt * 0.45, fx + wd, base); c.closePath(); c.fill();
+      };
+      c.save(); c.globalCompositeOperation = 'lighter';
+      flame(3.2 * u, fh, 'rgba(255,110,30,0.55)');
+      flame(2.3 * u, fh * 0.82, 'rgba(255,200,70,0.9)');
+      flame(1.3 * u, fh * 0.55, 'rgba(255,252,235,1)');
+      c.fillStyle = 'rgba(90,140,255,0.55)'; c.beginPath(); c.ellipse(fx, base - 0.5 * u, 1.4 * u, 0.9 * u, 0, 0, Math.PI * 2); c.fill();
+      c.restore();
     } else if (d.out && now - d.out < 2200) {
-      // smoke wisp after blowing out
       const k = (now - d.out) / 2200;
       c.strokeStyle = `rgba(200,200,215,${0.45 * (1 - k)})`; c.lineWidth = 1.2 * u;
-      c.beginPath(); c.moveTo(fx, fy);
-      for (let i = 1; i <= 8; i++) c.lineTo(fx + Math.sin(i * 0.9 + now / 300) * 3 * u * (i / 8), fy - i * 4 * u * (0.4 + k));
+      c.beginPath(); c.moveTo(fx, fy - 2 * u);
+      for (let i = 1; i <= 8; i++) c.lineTo(fx + Math.sin(i * 0.9 + now / 300) * 3 * u * (i / 8), fy - 2 * u - i * 4 * u * (0.4 + k));
       c.stroke();
     }
   }

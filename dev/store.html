@@ -13,8 +13,9 @@
     .fg-row { display: flex; align-items: center; gap: 18px; }
     .fg-row svg { width: 104px; height: 104px; filter: drop-shadow(0 0 20px rgba(255,182,39,.55)); }
     .fg-name { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 84px; letter-spacing: .14em; line-height: .9; text-shadow: 0 4px 24px rgba(0,0,0,.8); }
-    .fg-hi { font-family: 'Yatra One', sans-serif; color: #ffb627; font-size: 34px; line-height: 1; margin-top: 4px; }
+    .fg-hi { font-family: 'Yatra One', sans-serif; color: #ffc857; font-size: 34px; line-height: 1; margin-top: 4px; }
     .fg-sub { font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 26px; letter-spacing: .2em; text-transform: uppercase; color: #ffe9c4; margin-top: 18px; text-shadow: 0 2px 12px #000; }
+    .fg-green { font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: .12em; text-transform: uppercase; color: #2ee59d; margin-top: 12px; text-shadow: 0 0 18px rgba(46,229,157,.5), 0 2px 8px #000; }
     .fg-by { font-family: 'Share Tech Mono', monospace; font-size: 17px; letter-spacing: .2em; text-transform: uppercase; color: #bcaec8; margin-top: 8px; }
     .fg-by b { color: #fff; font-weight: 400; }
   </style>
@@ -30,7 +31,8 @@
         <div><div class="fg-name">PATAKHA</div><div class="fg-hi">पटाखा · शुभ दीपावली</div></div>
       </div>
       <div class="fg-sub">Diwali Crackers Simulator</div>
-      <div class="fg-by">Sound · Vibration · Flashlight &nbsp;|&nbsp; by <b>ARTIN Studios</b></div>
+      <div class="fg-green">🌱 Green Diwali · Zero smoke · Save the air</div>
+      <div class="fg-by">Real sound · Vibration · Flashlight &nbsp;|&nbsp; by <b>ARTIN Studios</b></div>
     </div>
   </div>
   <svg width="0" height="0" style="position:absolute"><defs>
@@ -72,9 +74,9 @@
       sparks.update(1 / 60); sparks.draw(1 / 60);
     }
     // dark veil behind the text
-    const c = scene.pc, g = c.createLinearGradient(0, 0, 640, 0);
-    g.addColorStop(0, 'rgba(5,3,11,0.75)'); g.addColorStop(1, 'rgba(5,3,11,0)');
-    c.globalCompositeOperation = 'source-over'; c.fillStyle = g; c.fillRect(0, 0, 640, H);
+    const c = scene.pc, g = c.createLinearGradient(0, 0, 820, 0);
+    g.addColorStop(0, 'rgba(4,8,16,0.82)'); g.addColorStop(0.7, 'rgba(4,8,16,0.6)'); g.addColorStop(1, 'rgba(4,8,16,0)');
+    c.globalCompositeOperation = 'source-over'; c.fillStyle = g; c.fillRect(0, 0, 820, H);
     document.body.dataset.ready = '1';
   </script>
 </body>

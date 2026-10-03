@@ -10,6 +10,20 @@ import { rng } from './synth.js';
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pickW = (list) => { let r = Math.random(); for (const [v, w] of list) { if ((r -= w) <= 0) return v; } return list[0][0]; };
 
+
+/** Soft contact shadow under a body. */
+function shadow(c, x, y, rx, ry, a = 0.45) {
+  const g = c.createRadialGradient(x, y, 0, x, y, rx);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.save(); c.translate(x, y); c.scale(1, ry / rx); c.translate(-x, -y); c.fillStyle = g; c.beginPath(); c.arc(x, y, rx, 0, Math.PI * 2); c.fill(); c.restore();
+}
+/** A cylinder-style horizontal gradient: dark edges, colour, a bright highlight. */
+function tube(c, x0, x1, cols) {
+  const g = c.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, cols[2]); g.addColorStop(0.28, cols[0]); g.addColorStop(0.42, cols[1]); g.addColorStop(0.6, cols[0]); g.addColorStop(1, cols[2]);
+  return g;
+}
+
 class Visual {
   constructor(st, plan, x, y, when) {
     this.st = st; this.p = plan; this.x = x; this.y = y; this.when = when; this.done = false;
@@ -44,7 +58,7 @@ export function burst(st, x, y, b, { scale = 1, alpha = 1 } = {}) {
     if (b.type === 'ring') { const a = (i / n) * Math.PI * 2; dx = Math.cos(a); dy = Math.sin(a) * 0.6; }
     else { const z = Math.random() * 2 - 1, phi = Math.random() * Math.PI * 2, r = Math.sqrt(1 - z * z); dx = r * Math.cos(phi); dy = r * Math.sin(phi); }
     const s = V * rnd(0.88, 1.04), col = (pal2 && i % 2 ? pal2 : pal)[i % 3 === 0 ? 1 : 0];
-    const o = { x, y, vx: dx * s, vy: dy * s, life: rnd(1.3, 1.9), colour: col, size: 2.2 * u, drag: 1.9, grav: 75 * u, alpha };
+    const o = { x, y, vx: dx * s, vy: dy * s, life: rnd(1.3, 1.9), colour: col, size: 2.2 * u, drag: 1.9, grav: 75 * u, alpha, glow: true };
     if (b.type === 'willow') Object.assign(o, { life: rnd(2.4, 3.1), drag: 2.5, grav: 120 * u, trail: 0.55, tcol: '#ffb347', colour: '#ffcf6e', size: 1.6 * u });
     else if (b.type === 'crackle') Object.assign(o, { life: rnd(0.9, 1.5), crackle: true, colour: '#ffd27a', split: 2 });
     else if (Math.random() < 0.25) Object.assign(o, { flicker: true, trail: 0.15, tcol: col });
@@ -80,15 +94,34 @@ class Anar extends Visual {
   draw(c) {
     const u = this.u, x = this.x, y = this.y, burnt = this.t > this.p.end;
     c.save(); c.globalAlpha = Math.min(1, (this.p.end + 2 - this.t) / 0.8);
-    c.fillStyle = '#5a2a12'; c.beginPath(); c.ellipse(x, y, 13 * u, 3.4 * u, 0, 0, Math.PI * 2); c.fill();
-    const g = c.createLinearGradient(x - 11 * u, 0, x + 11 * u, 0);
-    const cols = burnt ? ['#3a1a1a', '#5a2b26', '#2a1414'] : this.p.colours ? ['#3d1d63', '#7b46b3', '#2a1046'] : ['#8e1d26', '#d8323d', '#6e141c'];
-    g.addColorStop(0, cols[0]); g.addColorStop(0.45, cols[1]); g.addColorStop(1, cols[2]);
-    c.fillStyle = g; c.beginPath(); c.moveTo(x - 11 * u, y); c.lineTo(x - 2.4 * u, y - 30 * u); c.lineTo(x + 2.4 * u, y - 30 * u); c.lineTo(x + 11 * u, y); c.closePath(); c.fill();
-    if (!burnt) { c.fillStyle = '#ffcf4a'; c.beginPath(); c.moveTo(x - 7.4 * u, y - 12 * u); c.lineTo(x + 7.4 * u, y - 12 * u); c.lineTo(x + 6.2 * u, y - 16.5 * u); c.lineTo(x - 6.2 * u, y - 16.5 * u); c.fill(); }
-    c.fillStyle = '#2a1a10'; c.fillRect(x - 2.4 * u, y - 31 * u, 4.8 * u, 1.6 * u);
+    shadow(c, x, y + 1 * u, 16 * u, 4.5 * u);
+    const cols = burnt ? ['#4a2420', '#6a3a30', '#22100c'] : this.p.colours ? ['#6d36b8', '#b98cff', '#2a1046'] : ['#d23a2e', '#ff8a5c', '#5e140f'];
+    const top = y - 30 * u;
+    // clay pot: a cone with a rounded belly
+    c.fillStyle = tube(c, x - 12 * u, x + 12 * u, cols);
+    c.beginPath(); c.moveTo(x - 2.6 * u, top);
+    c.bezierCurveTo(x - 6 * u, top + 10 * u, x - 13 * u, y - 8 * u, x - 11 * u, y - 1 * u);
+    c.quadraticCurveTo(x, y + 2.4 * u, x + 11 * u, y - 1 * u);
+    c.bezierCurveTo(x + 13 * u, y - 8 * u, x + 6 * u, top + 10 * u, x + 2.6 * u, top); c.closePath(); c.fill();
+    if (!burnt) {
+      // painted bands: gold zigzag, a row of dots, a green ring
+      c.strokeStyle = '#ffd34d'; c.lineWidth = 1.1 * u; c.beginPath();
+      for (let i = 0; i <= 8; i++) { const px = x - 8.4 * u + (16.8 * u * i) / 8, py = y - 11 * u + (i % 2 ? -2 * u : 0); i ? c.lineTo(px, py) : c.moveTo(px, py); }
+      c.stroke();
+      c.fillStyle = '#fff3d6'; for (let i = -3; i <= 3; i++) { c.beginPath(); c.arc(x + i * 2.4 * u, y - 5 * u + Math.abs(i) * 0.25 * u, 0.6 * u, 0, Math.PI * 2); c.fill(); }
+      c.strokeStyle = this.p.colours ? '#53ff8f' : '#1fae6a'; c.lineWidth = 1.4 * u;
+      c.beginPath(); c.moveTo(x - 5.4 * u, y - 19 * u); c.quadraticCurveTo(x, y - 17.6 * u, x + 5.4 * u, y - 19 * u); c.stroke();
+    }
+    // gloss
+    c.fillStyle = 'rgba(255,255,255,0.18)';
+    c.beginPath(); c.moveTo(x - 1.6 * u, top + 2 * u); c.quadraticCurveTo(x - 7 * u, y - 10 * u, x - 6.4 * u, y - 3 * u); c.lineTo(x - 4.6 * u, y - 3 * u); c.quadraticCurveTo(x - 5 * u, y - 10 * u, x - 0.6 * u, top + 2 * u); c.fill();
+    // clay cap with the fuse hole
+    c.fillStyle = '#7a4a2a'; c.beginPath(); c.ellipse(x, top, 3 * u, 1.2 * u, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#1a0d06'; c.beginPath(); c.ellipse(x, top, 1.2 * u, 0.5 * u, 0, 0, Math.PI * 2); c.fill();
+    if (this.lit === false) { c.strokeStyle = '#c49a6c'; c.lineWidth = 0.9 * u; c.beginPath(); c.moveTo(x, top); c.quadraticCurveTo(x + 1.5 * u, top - 2 * u, x, top - 3 * u); c.stroke(); }
     c.restore();
   }
+
   static torch(p) { return [{ t: p.fuse + 0.05, ms: 350 }, { t: p.fuse + p.burn * 0.5, ms: 250 }]; }
 }
 
@@ -115,16 +148,33 @@ class Chakri extends Visual {
   }
   draw(c) {
     const u = this.u, x = this.x, y = this.y, R = 10 * u, t = this.t, p = this.p;
-    const k = t > p.fuse ? sample(p.curve, p.burn, t - p.fuse) : 0;
+    const k = t > p.fuse ? sample(p.curve, p.burn, t - p.fuse) : 0, burnt = t > p.end;
     c.save(); c.globalAlpha = Math.min(1, (p.end + 1.8 - t) / 0.8);
-    c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.ellipse(x, y + 2 * u, R * 1.1, R * 0.5, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = t > p.end ? '#2b2b24' : '#1f8a5a'; c.beginPath(); c.ellipse(x, y, R, R * 0.42, 0, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = t > p.end ? '#4a4030' : '#ffcf4a'; c.lineWidth = 1.4 * u;
-    for (let i = 0; i < 3; i++) { const a = this.th + (i * Math.PI * 2) / 3; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * R, y + Math.sin(a) * R * 0.42); c.stroke(); }
-    c.fillStyle = '#c8323c'; c.beginPath(); c.ellipse(x, y, 2.6 * u, 1.2 * u, 0, 0, Math.PI * 2); c.fill();
-    if (k > 0.05) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.6 * k; c.strokeStyle = '#ffe7a8'; c.lineWidth = 3 * u; c.beginPath(); c.ellipse(x, y, R * 1.15, R * 0.5, 0, 0, Math.PI * 2); c.stroke(); }
+    shadow(c, x, y + 2 * u, R * 1.4, R * 0.5);
+    // the coiled paper tube: rings of colour, turning
+    const bands = burnt ? ['#2b2b24', '#3a3428', '#2b2b24', '#3a3428'] : ['#e8343f', '#ffd23f', '#1fae6a', '#3f8cff'];
+    for (let i = 0; i < 4; i++) {
+      const rr = R * (1 - i * 0.2);
+      c.strokeStyle = bands[i]; c.lineWidth = R * 0.2;
+      c.setLineDash([R * 0.5, R * 0.18]); c.lineDashOffset = -this.th * rr * (i % 2 ? 1 : -1);
+      c.beginPath(); c.ellipse(x, y, rr - R * 0.1, (rr - R * 0.1) * 0.42, 0, 0, Math.PI * 2); c.stroke();
+    }
+    c.setLineDash([]);
+    // gold foil hub
+    const hub = c.createRadialGradient(x - 1 * u, y - 0.6 * u, 0, x, y, 3 * u);
+    hub.addColorStop(0, '#fff3c4'); hub.addColorStop(1, '#b8860b');
+    c.fillStyle = hub; c.beginPath(); c.ellipse(x, y, 3 * u, 1.4 * u, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.22)'; c.beginPath(); c.ellipse(x - R * 0.3, y - R * 0.18, R * 0.45, R * 0.12, -0.2, 0, Math.PI * 2); c.fill();
+    if (k > 0.05) {
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 3; i++) {
+        c.globalAlpha = 0.5 * k * (1 - i * 0.25); c.strokeStyle = i ? '#ffb347' : '#fff1c4'; c.lineWidth = (3 - i * 0.7) * u;
+        c.beginPath(); c.ellipse(x, y, R * (1.15 + i * 0.12), R * (1.15 + i * 0.12) * 0.42, 0, this.th + i, this.th + i + 2.2); c.stroke();
+      }
+    }
     c.restore();
   }
+
 }
 
 // ------------------------------------------------------------------ ROCKET
@@ -159,20 +209,35 @@ class Rocket extends Visual {
   draw(c) {
     const u = this.u, x = this.x, y = this.y;
     c.save(); c.globalAlpha = Math.min(1, (this.p.end + 0.5 - this.t) / 0.8);
-    // glass bottle
-    c.fillStyle = 'rgba(50,140,95,0.55)';
+    shadow(c, x, y + 1 * u, 10 * u, 3 * u);
+    // glass bottle with a printed label
+    const glass = c.createLinearGradient(x - 6 * u, 0, x + 6 * u, 0);
+    glass.addColorStop(0, 'rgba(20,90,60,0.85)'); glass.addColorStop(0.35, 'rgba(70,170,120,0.65)'); glass.addColorStop(1, 'rgba(15,70,45,0.9)');
+    c.fillStyle = glass;
     c.beginPath(); c.moveTo(x - 6 * u, y); c.lineTo(x - 6 * u, y - 16 * u); c.quadraticCurveTo(x - 6 * u, y - 20 * u, x - 2.2 * u, y - 22 * u); c.lineTo(x - 2.2 * u, y - 28 * u);
     c.lineTo(x + 2.2 * u, y - 28 * u); c.lineTo(x + 2.2 * u, y - 22 * u); c.quadraticCurveTo(x + 6 * u, y - 20 * u, x + 6 * u, y - 16 * u); c.lineTo(x + 6 * u, y); c.closePath(); c.fill();
-    c.fillStyle = 'rgba(255,255,255,0.22)'; c.fillRect(x - 4.5 * u, y - 15 * u, 1.4 * u, 12 * u);
-    c.fillStyle = '#e8d9a8'; c.fillRect(x - 6 * u, y - 10 * u, 12 * u, 5 * u);
+    c.fillStyle = '#f2e6c4'; c.fillRect(x - 6 * u, y - 11 * u, 12 * u, 5.5 * u);
+    c.fillStyle = '#e8343f'; c.fillRect(x - 6 * u, y - 11 * u, 12 * u, 1.2 * u); c.fillRect(x - 6 * u, y - 6.7 * u, 12 * u, 1.2 * u);
+    c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x - 4.6 * u, y - 19 * u, 1.2 * u, 7 * u); c.fillRect(x - 4.6 * u, y - 4.5 * u, 1.2 * u, 3.5 * u);
     if (this.t < this.p.launch) {
       c.strokeStyle = '#c49a6c'; c.lineWidth = 1.1 * u; c.beginPath(); c.moveTo(x, y - 8 * u); c.lineTo(x, y - 42 * u); c.stroke();
-      c.fillStyle = '#c8323c'; c.fillRect(x - 2.2 * u, y - 48 * u, 4.4 * u, 13 * u);
-      c.fillStyle = '#ffcf4a'; c.beginPath(); c.moveTo(x - 2.2 * u, y - 48 * u); c.lineTo(x, y - 53 * u); c.lineTo(x + 2.2 * u, y - 48 * u); c.fill();
+      // striped tube, foil nose cone, little fins
+      c.fillStyle = tube(c, x - 2.4 * u, x + 2.4 * u, ['#d42a36', '#ff7a7a', '#6e0f16']); c.fillRect(x - 2.4 * u, y - 48 * u, 4.8 * u, 13 * u);
+      c.fillStyle = '#fff3d6'; c.fillRect(x - 2.4 * u, y - 44 * u, 4.8 * u, 1.3 * u); c.fillRect(x - 2.4 * u, y - 40 * u, 4.8 * u, 1.3 * u);
+      c.fillStyle = tube(c, x - 2.4 * u, x + 2.4 * u, ['#e0b23c', '#fff1b8', '#7a5a10']);
+      c.beginPath(); c.moveTo(x - 2.4 * u, y - 48 * u); c.quadraticCurveTo(x - 1.6 * u, y - 52 * u, x, y - 54.5 * u); c.quadraticCurveTo(x + 1.6 * u, y - 52 * u, x + 2.4 * u, y - 48 * u); c.fill();
+      c.fillStyle = '#1fae6a'; c.beginPath(); c.moveTo(x - 2.4 * u, y - 38 * u); c.lineTo(x - 4.6 * u, y - 35 * u); c.lineTo(x - 2.4 * u, y - 35.5 * u); c.fill();
+      c.beginPath(); c.moveTo(x + 2.4 * u, y - 38 * u); c.lineTo(x + 4.6 * u, y - 35 * u); c.lineTo(x + 2.4 * u, y - 35.5 * u); c.fill();
     }
-    if (this.head) { c.globalCompositeOperation = 'lighter'; c.fillStyle = '#fff6dd'; c.beginPath(); c.arc(this.head.x, this.head.y, 2.6 * u, 0, Math.PI * 2); c.fill(); }
+    if (this.head) {
+      c.globalCompositeOperation = 'lighter';
+      const g = c.createRadialGradient(this.head.x, this.head.y, 0, this.head.x, this.head.y, 9 * u);
+      g.addColorStop(0, 'rgba(255,246,221,1)'); g.addColorStop(0.3, 'rgba(255,200,110,0.6)'); g.addColorStop(1, 'rgba(255,160,60,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(this.head.x, this.head.y, 9 * u, 0, Math.PI * 2); c.fill();
+    }
     c.restore();
   }
+
   static torch(p) { return [{ t: p.burst, ms: 140 }]; }
 }
 
@@ -220,7 +285,9 @@ class Bomb extends Visual {
     }
     const g = c.createRadialGradient(x - R * 0.35, y - R * 0.35, R * 0.1, x, y, R);
     if (p.colour === 'green') { g.addColorStop(0, '#5fd38a'); g.addColorStop(1, '#1d5a33'); } else { g.addColorStop(0, '#d9a066'); g.addColorStop(1, '#6e4520'); }
+    shadow(c, x, this.y + 1 * u, R * 1.3, R * 0.4);
     c.fillStyle = g; c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.25)'; c.beginPath(); c.ellipse(x - R * 0.4, y - R * 0.45, R * 0.28, R * 0.16, -0.6, 0, Math.PI * 2); c.fill();
     c.strokeStyle = p.colour === 'green' ? 'rgba(255,207,74,0.75)' : 'rgba(70,40,15,0.65)'; c.lineWidth = 0.9 * u;
     for (let i = -2; i <= 2; i++) {
       c.beginPath(); c.ellipse(x, y, R, R * Math.abs(i) * 0.3 + 0.5, 0, 0, Math.PI * 2); c.stroke();
@@ -296,6 +363,7 @@ class Ladi extends Visual {
       const a = i % 2 ? 0.6 : -0.6, { x, y } = pts[i];
       c.strokeStyle = i % 7 === 3 ? '#2f8f4e' : '#d9303a';
       c.beginPath(); c.moveTo(x - Math.sin(a) * tl * 0.5, y - Math.cos(a) * tl * 0.5); c.lineTo(x + Math.sin(a) * tl * 0.5, y + Math.cos(a) * tl * 0.5); c.stroke();
+      if (p.n <= 200) { c.strokeStyle = '#ffd34d'; c.beginPath(); c.moveTo(x - Math.sin(a) * tl * 0.08, y - Math.cos(a) * tl * 0.08); c.lineTo(x + Math.sin(a) * tl * 0.08, y + Math.cos(a) * tl * 0.08); c.stroke(); }
     }
     c.restore();
   }
@@ -412,14 +480,26 @@ class SkyShot extends Visual {
   draw(c) {
     const u = this.u, x = this.x, y = this.y, t = this.t;
     c.save(); c.globalAlpha = Math.min(1, (this.p.end + 0.5 - t) / 0.8);
-    c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.ellipse(x, y + 1.5 * u, 18 * u, 4 * u, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#4a2475'; c.fillRect(x - 15 * u, y - 18 * u, 30 * u, 18 * u);
-    c.fillStyle = '#6b3ba3'; c.beginPath(); c.moveTo(x - 15 * u, y - 18 * u); c.lineTo(x - 11 * u, y - 22 * u); c.lineTo(x + 19 * u, y - 22 * u); c.lineTo(x + 15 * u, y - 18 * u); c.fill();
-    c.fillStyle = '#ffcf4a'; c.fillRect(x - 15 * u, y - 10 * u, 30 * u, 2.5 * u);
-    c.fillStyle = '#160b24';
-    for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) { const done = this.shots[r * 6 + i]?.state > 0; c.globalAlpha *= 1; c.fillStyle = done ? '#2a1a12' : '#160b24'; c.beginPath(); c.ellipse(x - 11 * u + i * 5 * u + r * 2 * u, y - 19.2 * u - r * 1.6 * u, 1.7 * u, 0.7 * u, 0, 0, Math.PI * 2); c.fill(); }
+    shadow(c, x, y + 1.5 * u, 22 * u, 5 * u);
+    // printed box: front, top, side
+    const fr = c.createLinearGradient(0, y - 18 * u, 0, y); fr.addColorStop(0, '#7b3fd0'); fr.addColorStop(1, '#3a1470');
+    c.fillStyle = fr; c.fillRect(x - 15 * u, y - 18 * u, 30 * u, 18 * u);
+    c.fillStyle = '#2a0f55'; c.beginPath(); c.moveTo(x + 15 * u, y - 18 * u); c.lineTo(x + 19 * u, y - 22 * u); c.lineTo(x + 19 * u, y - 4 * u); c.lineTo(x + 15 * u, y); c.fill();
+    c.fillStyle = '#9a62e8'; c.beginPath(); c.moveTo(x - 15 * u, y - 18 * u); c.lineTo(x - 11 * u, y - 22 * u); c.lineTo(x + 19 * u, y - 22 * u); c.lineTo(x + 15 * u, y - 18 * u); c.fill();
+    c.fillStyle = '#ffcf4a'; c.fillRect(x - 15 * u, y - 11 * u, 30 * u, 2.2 * u); c.fillRect(x - 15 * u, y - 2.2 * u, 30 * u, 1.2 * u);
+    // printed stars
+    c.fillStyle = '#fff3c4';
+    for (const [sx, sy, r] of [[-9, -14.5, 1.6], [0, -15, 1.2], [8, -14.2, 1.5], [-4, -5.5, 1.1], [6, -5.8, 1.2]]) {
+      c.beginPath(); for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 - Math.PI / 2, rr = (i % 2 ? 0.45 : 1) * r * u; c.lineTo(x + sx * u + Math.cos(a) * rr, y + sy * u + Math.sin(a) * rr); } c.fill();
+    }
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) {
+      const done = this.shots[r * 6 + i]?.state > 0, cx = x - 11 * u + i * 5 * u + r * 2 * u, cy = y - 19.2 * u - r * 1.6 * u;
+      c.fillStyle = '#e8d9b8'; c.beginPath(); c.ellipse(cx, cy, 2.1 * u, 0.95 * u, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = done ? '#2a1a12' : '#160b24'; c.beginPath(); c.ellipse(cx, cy, 1.5 * u, 0.62 * u, 0, 0, Math.PI * 2); c.fill();
+    }
     c.restore();
   }
+
   static torch(p) { return p.shots.map((s) => ({ t: s.burst, ms: 120 })); }
 }
 

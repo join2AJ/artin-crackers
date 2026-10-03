@@ -18,12 +18,12 @@ Everything to paste into Play Console. Character limits are in brackets.
 (28 characters. Alternatives: "Patakha – Diwali Crackers" (25), "Diwali Crackers: Patakha" (24).)
 
 **Short description** [80]
-> Burst anar, chakri, rockets & bombs with real sound, vibration and flashlight!
+> Smoke-free Diwali crackers: real sound & vibration, and see the CO₂ you save!
 
 (78 characters)
 
 **Full description** [4000]
-> Celebrate Diwali on a rooftop under the new-moon sky: all the dhamaka, none of the smoke! 🪔
+> Celebrate a GREEN Diwali! 🌱🪔 All the dhamaka, none of the smoke: every cracker you burst in Patakha is one real cracker that never pollutes the air. Watch your CO₂ and smoke savings grow, earn green badges and share your Green Diwali card.
 >
 > Patakha is a realistic Diwali crackers simulator. Pick a cracker, tap the terrace and watch it go. Every cracker has its own sound, made for that cracker, your phone vibrates with every blast, and the flashlight flashes with the big ones.
 >

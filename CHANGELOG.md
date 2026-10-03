@@ -9,6 +9,23 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-03 · Play build 4
+### Changed
+- **Fresh, eco-first look.** New palette: emerald for the green-Diwali highlight and main actions, warm gold for festive touches and Hindi, on a midnight-teal base. Frosted-glass panels, softer cut corners and a glowing primary button replace the old plum-and-marigold look.
+- **Saving the air is now the headline.** The splash says "Green Diwali · Zero smoke", and the welcome reads "Celebrate Diwali. Save the air." The top bar has an **eco meter**: CO₂ saved tonight, crackers lit, and a ring that fills towards your next green badge.
+- **Diyas redesigned.** Glazed clay lamps with a painted gold band and dots, a pinched spout, a glowing oil pool and a layered flame (blue base, gold body, white core) that casts a pool of light on the floor. They now stand in pairs along the wall, and eight more sit in a ring around the rangoli.
+- **Rangoli redesigned.** A detailed coloured-powder mandala: pink and gold petal rings, bead borders, a teal eight-pointed star, a violet lotus and a glowing centre, with powder grain. It is painted flat and laid on the floor in perspective.
+- **Crackers redrawn.** A painted clay anar with a gold zigzag and a glossy highlight, a chakri of turning coloured paper bands with a gold foil hub, a striped rocket with a foil nose cone and fins in a labelled glass bottle, a printed sky-shot box with stars, ladi tubes with gold bands, a shine on the bombs, and soft contact shadows under everything. Firework stars now have a soft glowing halo.
+- **Greeting card** opens on the new **Green Diwali** style by default: your CO₂ saved in big type, cigarettes' smoke and car kilometres avoided, crackers lit, your badges, and "Join me: celebrate with light, not smoke". The share message carries the same numbers.
+- With real lighting on, tapping a diya toggles it on release, so a lighter drag can start on top of one. The diya touch area is tighter.
+- Store feature graphic leads with "Green Diwali · Zero smoke · Save the air".
+- Service-worker cache bumped to `patakha-v4`.
+### Added
+- **Background previews**: each background in the picker shows a real thumbnail painted from that scene.
+- **"+60 g CO₂" pops** float up from every cracker you light, and the eco meter pulses.
+- **Green badges**: Seedling, Clean-Air Friend, Tree Buddy, Lung Saver, Pet Protector, Earth Guardian, Green Champion and Air Hero, each celebrated with a pop-up when earned.
+- **Impact screen redesigned**: a big progress ring, a plain-language summary, four everyday equivalents (cigarettes' smoke, car kilometres, phone charges, tree-days), the badge shelf, the air-quality and noise notes, and a **Share my Green Diwali** button.
+
 ## [0.3.0] — 2026-10-03 · Play build 3 · `5997852`
 ### Added
 - **Real lighting.** Tap the ground to set a cracker down unlit, then press and drag your lighter to its fuse. Hold it there a moment and the fuse catches with a fizz of sparks, then it goes off. Choose the lighter from the rail: **agarbatti** (glowing tip and incense smoke), **candle** or **phuljhadi**. The old tap-to-light-at-once way is still in Settings (*Real lighting* off).

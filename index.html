@@ -58,6 +58,7 @@
       <svg class="splash-mark"><use href="#mark"/></svg>
       <div class="splash-game">PATAKHA</div>
       <div class="splash-hi">पटाखा</div>
+      <div class="splash-tag"><svg><use href="#i-leaf"/></svg> Green Diwali · Zero smoke</div>
       <div class="splash-studio">by ARTIN <span>Studios</span></div>
     </div>
   </div>
@@ -75,7 +76,10 @@
       <svg class="brand-mark"><use href="#mark"/></svg>
       <div><b>PATAKHA</b><small>by ARTIN Studios</small></div>
     </div>
-    <button class="tally cut" id="btnImpact" title="Your green impact" aria-label="Your green impact"><b id="litCount">0</b> lit <span class="sep">·</span> <svg><use href="#i-leaf"/></svg> <span class="co2"><b id="co2Count">0 g</b><span class="smoke-txt"> CO₂ saved</span></span></button>
+    <button class="eco cut" id="btnImpact" aria-label="Your green impact: CO₂ and smoke saved">
+      <span class="ring"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="3.5"/><circle id="ecoArc" cx="18" cy="18" r="15" fill="none" stroke="#2ee59d" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="94.25"/></svg><svg class="leaf" aria-hidden="true"><use href="#i-leaf"/></svg></span>
+      <span><b id="co2Count">0 g</b><small><span id="litCount">0</span> lit · CO₂ saved</small></span>
+    </button>
     <div class="hud-btns">
       <button class="icon-btn cut" id="btnMute" aria-label="Mute all sound" aria-pressed="false"><svg><use href="#i-sound"/></svg></button>
       <button class="icon-btn cut" id="btnDiya" aria-label="Blow out the diyas (microphone)" aria-pressed="false"><svg><use href="#i-diya"/></svg></button>
@@ -109,9 +113,9 @@
   <div class="sheet-wrap" id="welcome" hidden>
     <div class="sheet cut welcome">
       <svg class="welcome-mark"><use href="#mark"/></svg>
-      <p class="eyebrow">Shubh Deepavali · शुभ दीपावली</p>
-      <h2>All the <em>dhamaka</em>.<br/>None of the smoke.</h2>
-      <p class="lead">Anar, chakri, rockets, ladi and sutli bombs with sound made for each cracker. Your phone vibrates with every blast and the flashlight flashes with it.</p>
+      <p class="eyebrow">Green Diwali · हरित दीपावली</p>
+      <h2>Celebrate Diwali.<br/><em>Save the air.</em></h2>
+      <p class="lead">Every cracker you light here is one real cracker that never goes up in smoke. Enjoy the full dhamaka with real sound, vibration and flashlight, watch your <b>CO₂ and smoke savings</b> grow, earn green badges and share your Green Diwali card.</p>
       <ul class="feat">
         <li><svg><use href="#i-lighter"/></svg><span><b>Tap the ground</b> to set a cracker down, then <b>press and drag the agarbatti</b> to its fuse.</span></li>
         <li><svg><use href="#i-sound"/></svg><span><b>Turn the volume up</b>, ideally with headphones or a speaker.</span></li>
@@ -198,10 +202,13 @@
   <div class="sheet-wrap" id="impact" hidden>
     <div class="sheet cut" role="dialog" aria-labelledby="impTitle">
       <div class="sheet-head"><h3 id="impTitle">Your green Diwali</h3><button class="icon-btn sm cut" data-close aria-label="Close"><svg><use href="#i-close"/></svg></button></div>
-      <p class="lead">Every cracker you burst here is one real cracker that didn't go up in smoke. This is what you saved the air around you.</p>
       <div class="seg" id="impSeg"><button aria-pressed="true" data-k="tonight">Tonight</button><button aria-pressed="false" data-k="total">All time</button></div>
-      <div class="stats" id="impStats"></div>
+      <div class="impact-hero" id="impHero"></div>
+      <div class="equiv" id="impEquiv"></div>
+      <h4>Green badges</h4>
+      <div class="badges" id="impBadges"></div>
       <div class="impact-notes" id="impNotes"></div>
+      <button class="btn-primary cut" id="btnShareImpact"><svg><use href="#i-leaf"/></svg> <span>Share my Green Diwali</span></button>
       <p class="note">How we count: the smoke and PM2.5 figures for snake tablets, 1000-wala ladis, phuljhadis, chakris and anars were measured in a 2016 study by the Chest Research Foundation and the University of Pune. Figures for other crackers, CO₂ (about 1 g per gram of powder and paper burnt) and noise are our rough estimates, for awareness rather than science.</p>
     </div>
   </div>
@@ -274,6 +281,7 @@
     </div>
   </div>
 
+  <div class="milestone" id="milestone" role="status" aria-live="polite"><i></i><b></b><span></span></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="js/app.js"></script>
