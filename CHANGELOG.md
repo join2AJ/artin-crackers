@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.6.0] — 2026-10-03 · Play build 6
+## [0.6.0] — 2026-10-03 · Play build 6 · `dbd8e8f`
 ### Added
 - **Cracker variants.** Pick a variant from the chip bar above the tray. Each variant has its own sound and is remembered:
   - Anar: Gold, Silver, Colour, Giant (a taller fountain that lasts longer).
