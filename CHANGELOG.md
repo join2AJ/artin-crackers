@@ -9,6 +9,37 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-10-03 · Play build 10
+### Added
+- **35 crackers (26 free), 76 variants in all.** 22 new:
+  - Bombs: Lakshmi Bomb, Aloo Bomb, Chocolate Bomb, Bullet Bomb, Pop-Pop snappers.
+  - Fountains: Kothi Anar (clay pot), Tiranga Anar (saffron, white and green).
+  - Spinner: Zameen Chakkar.
+  - Handheld: Twinkling Star, Colour Matches.
+  - Rockets: Baby Rocket, Thunder Rocket (a white thunderclap), Golden Rain.
+  - Strings: Chatpati.
+  - Sky: Roman Candle (coloured balls), Fancy Shell (one big shell from a tube), Chhota Cake (4 shots).
+  - Premium: Hydrogen Bomb, Mayur Anar, 2000-wala, Grand Finale (60 shots), Udan Tashtari (a flying spinner that lifts off).
+  - Each has its own sound, 3D model, icon and field-manual page with eco estimates.
+- **Wait & watch:** pick a 1, 2 or 5-minute show. Crackers are set up and lit around you on their own, with a finale at the end. A timer at the top stops it. Every cracker still counts towards CO₂ saved.
+- **Privacy policy inside the app:** it opens in a sheet with a Back button and the app's own colours. The Android back button now returns to the game; before, opening the policy page and pressing back closed the app. The standalone `privacy.html` also got the app's colours and a "Back to Patakha" link.
+### Changed
+- **No more Place / Hold / Pick modes.** The one action button picks its job by itself:
+  - Light when you look at a cracker;
+  - Light diya when you look at a diya that is out;
+  - Pick up for a ball or can;
+  - Throw when you hold one;
+  - Hold for a sparkler;
+  - otherwise Place.
+- **Readable text on start:**
+  - the splash title, Hindi name, tagline and studio line have an ink outline and a dark backing;
+  - the map-select background is darker;
+  - hints sit on a dark pill.
+- Shared cracker recipes in `js/crackers.js` (`bombPlan`, `chakriPlan`, `rocketPlan`, `skyPlan` and their sounds). The 3D crackers read new plan fields: bomb shapes (round, box, tube, big, pop), clay anar, big and flying chakri, small and thunder rockets, tube cakes and roman-candle stars.
+- Service worker cache `patakha-v10`.
+### Removed
+- The Place / Hold / Pick switch and the `Q` key.
+
 ## [0.9.0] — 2026-10-03 · Play build 9 · `de41efb`
 ### Added
 - **First-run tutorial**, step by step:

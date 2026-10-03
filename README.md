@@ -1,6 +1,6 @@
 # Patakha: Diwali Crackers Simulator
 
-**by ARTIN Studios.** A 3D Diwali crackers game with a green heart. Walk around a low-poly mohalla, society, village chowk or green park on Diwali night, set down anar, chakri, rockets, ladi, sutli bombs and sky shots, and light them with an agarbatti, candle or phuljhadi in your hand. Every cracker has its own sound, the phone vibrates with every blast, and fireworks light up the houses around you. Every virtual cracker shows the CO₂ and smoke you kept out of the air, with green badges and a shareable Green Diwali card. All the dhamaka, none of the smoke.
+**by ARTIN Studios.** A 3D Diwali crackers game with a green heart. Walk around a low-poly mohalla, society, village chowk or green park on Diwali night, set down 35 kinds of crackers (anar, chakri, rockets, ladi, bombs, sky shots and more), light them with an agarbatti, candle or phuljhadi in your hand. Every cracker has its own sound, the phone vibrates with every blast, and fireworks light up the houses around you. Every virtual cracker shows the CO₂ and smoke you kept out of the air, with green badges and a shareable Green Diwali card. Or sit back for a 1, 2 or 5-minute show that lights itself. All the dhamaka, none of the smoke.
 
 - **Web:** static site, no build step, offline PWA (Netlify serves the repo root).
 - **Android:** native WebView wrapper in `android/`, app ID `com.artinstudios.crackers` (minSdk 26, target 36).

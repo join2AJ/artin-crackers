@@ -95,11 +95,13 @@
     <div class="hud-tr">
       <button class="icon-btn cut" id="btnMute" aria-label="Mute all sound" aria-pressed="false"><svg><use href="#i-sound"/></svg></button>
       <button class="icon-btn cut" id="btnDiya" aria-label="Blow out the diyas (microphone)" aria-pressed="false"><svg><use href="#i-diya"/></svg></button>
+      <button class="icon-btn cut" id="btnShow" aria-label="Wait and watch: an automatic show" aria-pressed="false"><svg><use href="#i-show"/></svg></button>
       <button class="icon-btn cut" id="btnCard" aria-label="Diwali greeting card"><svg><use href="#i-card"/></svg></button>
       <button class="icon-btn cut" id="btnClear" aria-label="Clear: stop everything"><svg><use href="#i-clear"/></svg></button>
       <button class="icon-btn cut" id="btnSettings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
     </div>
 
+    <button class="show-pill" id="showPill" hidden><svg><use href="#i-show"/></svg> Show · <b id="showTime">1:00</b> · <span>Stop</span></button>
     <div class="cross" id="cross" aria-hidden="true"><i></i></div>
     <div class="target" id="target" hidden></div>
 
@@ -110,11 +112,6 @@
     <div class="joy" id="joy" aria-hidden="true"><b class="ar u"></b><b class="ar d"></b><b class="ar l"></b><b class="ar r"></b><i></i></div>
 
     <div class="hud-br">
-      <div class="modes" id="modes" role="radiogroup" aria-label="What the action button does">
-        <button data-m="place" aria-pressed="true">Place</button>
-        <button data-m="hold" aria-pressed="false">Hold</button>
-        <button data-m="pick" aria-pressed="false">Pick</button>
-      </div>
       <button class="act" id="btnAct" aria-label="Place"><svg><use href="#i-play"/></svg><b>Place</b></button>
       <div class="cur" >
         <button class="cur-cr cut" id="btnCur" aria-label="Change the cracker"><svg class="art" viewBox="0 0 48 48" id="curArt"></svg><span><b id="curName">Anar</b><small id="curVar"></small></span></button>
@@ -189,6 +186,29 @@
     </div>
   </div>
 
+
+  <!-- ============================== WAIT AND WATCH ============================== -->
+  <div class="sheet-wrap" id="watch" hidden>
+    <div class="sheet cut" role="dialog" aria-labelledby="watchTitle">
+      <div class="sheet-head"><h3 id="watchTitle">Wait &amp; watch</h3><button class="icon-btn sm cut" data-close aria-label="Close"><svg><use href="#i-close"/></svg></button></div>
+      <p class="lead">Sit back and enjoy. Crackers are set up and lit around you on their own, with a finale at the end. Every one still counts as CO₂ saved.</p>
+      <div class="watch-opts">
+        <button class="watch-opt" data-min="1"><b>1</b><span>minute</span></button>
+        <button class="watch-opt" data-min="2"><b>2</b><span>minutes</span></button>
+        <button class="watch-opt" data-min="5"><b>5</b><span>minutes</span></button>
+      </div>
+      <p class="note">Tap the show timer at the top to stop it at any time.</p>
+    </div>
+  </div>
+
+  <!-- ============================== PRIVACY (in-app) ============================== -->
+  <div class="sheet-wrap" id="privacy" hidden>
+    <div class="sheet cut privacy-sheet" role="dialog" aria-labelledby="privTitle">
+      <div class="sheet-head"><button class="back-btn" data-close aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Back</button><h3 id="privTitle">Privacy</h3><span></span></div>
+      <div class="privacy-body" id="privBody"></div>
+    </div>
+  </div>
+
   <!-- ============================== SETTINGS ============================== -->
   <div class="sheet-wrap" id="settings" hidden>
     <div class="sheet cut" role="dialog" aria-labelledby="setTitle">
@@ -227,7 +247,7 @@
           <label class="row"><span>Shake phone to light <small>Lights the cracker you are looking at</small></span><input type="checkbox" class="sw" id="optShakeLight" /></label>
         </div>
         <button class="btn-ghost cut wide" id="btnTutorial">Replay the tutorial</button>
-        <p class="note">Desktop: <b>WASD</b> walk · drag to look · <b>Shift</b> run · <b>E</b> action · <b>Q</b> mode · <b>F</b> torch · <b>L</b> lighter · <b>1–9</b> crackers · <b>M</b> mute · <b>C</b> clear</p>
+        <p class="note">Desktop: <b>WASD</b> walk · drag to look · <b>Shift</b> run · <b>E</b> action · <b>F</b> torch · <b>L</b> lighter · <b>1–9</b> crackers · <b>M</b> mute · <b>C</b> clear</p>
       </div>
       <div class="tab" data-tab="more" hidden>
         <section class="shop" id="shop" hidden>

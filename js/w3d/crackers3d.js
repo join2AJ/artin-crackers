@@ -66,6 +66,13 @@ class C3 {
 class Anar extends C3 {
   build() {
     const p = this.p, s = p.big ? 1.4 : 1, [c0, c1, c2] = p.bodyCols || ['#c8323c', '#ffcf4a', '#7a3b1a'];
+    if (p.clay) { // kothi: a round clay pot with a narrow neck
+      const pot = mesh(new THREE.IcosahedronGeometry(0.12, 1), c0, 0, 0.11, 0); pot.scale.set(1, 0.85, 1); this.g.add(pot);
+      const ring = mesh(new THREE.TorusGeometry(0.115, 0.012, 4, 14), c1, 0, 0.11, 0); ring.rotation.x = Math.PI / 2; this.g.add(ring);
+      this.g.add(mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.06, 8), c2, 0, 0.23, 0));
+      this.fuseLocal.set(0, 0.28, 0); this.tipY = 0.26; this.radius = 0.13; this.shellCol = '#5a2a14';
+      return;
+    }
     this.g.add(mesh(new THREE.CylinderGeometry(0.1 * s, 0.11 * s, 0.03, 10), c2, 0, 0.015, 0));
     this.g.add(mesh(new THREE.CylinderGeometry(0.02 * s, 0.095 * s, 0.26 * s, 10), c0, 0, 0.03 + 0.13 * s, 0));
     this.g.add(mesh(new THREE.CylinderGeometry(0.06 * s, 0.075 * s, 0.05 * s, 10), c1, 0, 0.03 + 0.1 * s, 0));
@@ -98,7 +105,12 @@ class Chakri extends C3 {
     this.wheel.add(mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 8), '#c8323c', 0, 0.02, 0));
     const stripe = mesh(new THREE.TorusGeometry(0.075, 0.019, 3, 14, 1.2), '#ffcf4a', 0, 0.02, 0); stripe.rotation.x = Math.PI / 2; this.wheel.add(stripe);
     this.g.add(this.wheel);
-    this.fuseLocal.set(0.09, 0.03, 0); this.radius = 0.1; this.shellCol = '#2a2a2a';
+    const sc = this.p.big ? 1.5 : this.p.fly ? 1.2 : 1;
+    this.wheel.scale.setScalar(sc);
+    if (this.p.fly) { // flying saucer: a dome on top
+      const dome = mesh(new THREE.SphereGeometry(0.045, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), '#9fd0ff', 0, 0.025, 0); this.wheel.add(dome);
+    }
+    this.fuseLocal.set(0.09 * sc, 0.03, 0); this.radius = 0.1 * sc; this.shellCol = '#2a2a2a';
     this.th = 0; this.vel = new THREE.Vector2();
   }
   tick(dt, t) {
@@ -107,17 +119,21 @@ class Chakri extends C3 {
       const w = p.rps * Math.PI * 2 * Math.min(1, k * 1.3);
       this.th += w * dt; this.wheel.rotation.y = this.th;
       // it skids about on the ground
-      this.vel.x += rnd(-3, 3) * dt * k; this.vel.y += rnd(-3, 3) * dt * k; this.vel.multiplyScalar(0.97);
+      this.vel.x += rnd(-3, 3) * dt * k * (p.fly ? 0.4 : 1); this.vel.y += rnd(-3, 3) * dt * k * (p.fly ? 0.4 : 1); this.vel.multiplyScalar(0.97);
       const o = this.w.collide(this.g.position.x + this.vel.x * dt, this.g.position.z + this.vel.y * dt, 0.12);
       if (o.hit) this.vel.multiplyScalar(-0.5);
       this.g.position.x = o.x; this.g.position.z = o.z;
-      const gy = this.g.rotation.y + this.th, c = this.g.position;
+      if (this.p.fly) { // lifts off once it is spinning fast, then sinks as it burns out
+        const u = (t - p.fuse) / p.burn, h = u < 0.15 ? 0 : Math.sin(Math.min(1, (u - 0.15) / 0.85) * Math.PI) * this.p.fly;
+        this.wheel.position.y = h;
+      }
+      const gy = this.g.rotation.y + this.th, c = this.g.position, wy = this.wheel.position.y;
       for (let i = this.count(420 * k, dt); i > 0; i--) {
         const a = gy + rnd(-0.3, 0.3), rx = Math.cos(a) * 0.09, rz = -Math.sin(a) * 0.09, s = rnd(3, 6.5) * (0.6 + 0.4 * k);
         const col = p.colours ? p.colours[Math.floor(Math.random() * p.colours.length)] : pickW([['#ffd27a', 0.6], ['#fff1c9', 0.25], ['#ff9a3c', 0.15]]);
-        this.w.sparks.spawn({ x: c.x + rx, y: 0.04, z: c.z + rz, vx: Math.sin(a) * s, vy: rnd(0.3, 1.6), vz: Math.cos(a) * s, life: rnd(0.25, 0.6), size: rnd(0.04, 0.06), c: col, drag: 1.4, grav: 9.8, bounce: 0.35 });
+        this.w.sparks.spawn({ x: c.x + rx, y: 0.04 + wy, z: c.z + rz, vx: Math.sin(a) * s, vy: rnd(0.3, 1.6) - (wy ? 2 : 0), vz: Math.cos(a) * s, life: rnd(0.25, 0.6), size: rnd(0.04, 0.06), c: col, drag: 1.4, grav: 9.8, bounce: 0.35 });
       }
-      this.w.glowAt({ x: c.x, y: 0.3, z: c.z }, p.colours ? p.colours[0] : '#ffaa55', 8 + 30 * k);
+      this.w.glowAt({ x: c.x, y: 0.3 + wy, z: c.z }, p.colours ? p.colours[0] : '#ffaa55', 8 + 30 * k);
       if (Math.random() < dt * 4 * k) this.smokePuff({ x: c.x, y: 0.1, z: c.z }, 0.6);
     }
     if (t > p.end + 0.3) this.spend();
@@ -135,6 +151,8 @@ class Rocket extends C3 {
     r.add(mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.16, 8), '#c8323c', 0, 0.38, 0));
     r.add(mesh(new THREE.ConeGeometry(0.024, 0.06, 8), '#ffcf4a', 0, 0.49, 0));
     r.position.y = 0.0; this.g.add(r);
+    if (this.p.small) this.g.scale.setScalar(0.75);
+    if (this.p.type === 'thunder') r.children[1].material = toon('#2b2d33');
     this.fuseLocal.set(0.02, 0.3, 0); this.radius = 0.07; this.shellCol = '#1d4a35';
   }
   tick(dt, t) {
@@ -145,7 +163,7 @@ class Rocket extends C3 {
       this.g.remove(this.rocket); w.scene.add(this.rocket);
       const cam = w.camera.position, away = new THREE.Vector2(this.from.x - cam.x, this.from.z - cam.z).normalize();
       this.dir = away.rotateAround(new THREE.Vector2(), rnd(-0.5, 0.5));
-      this.H = 18 + 16 * p.height;
+      this.H = p.small ? 9 + 8 * p.height : 18 + 16 * p.height;
       w.flash(this.from, '#ffb066', 12, 250);
       for (let i = 0; i < 6; i++) this.smokePuff(this.from, 0.6);
     }
@@ -159,7 +177,12 @@ class Rocket extends C3 {
       w.glowAt(tail, '#ffaa55', 10);
       if (u >= 1) {
         this.flying = false; this.burst = true; w.scene.remove(this.rocket);
-        w.burst(this.rocket.position.clone().add(new THREE.Vector3(0, 0.4, 0)), p, PALETTES[p.colour] || PALETTES.gold, p.colour2 ? PALETTES[p.colour2] : null, 1);
+        const bp = this.rocket.position.clone().add(new THREE.Vector3(0, 0.4, 0));
+        if (p.type === 'thunder') { // a white thunderclap instead of stars
+          w.burst(bp, { type: 'crackle', size: 0.35 }, PALETTES.silver, null, 0.6);
+          w.flash(bp, '#ffffff', 220, 320, 1.4);
+          w.shake(0.35);
+        } else w.burst(bp, p, PALETTES[p.colour] || PALETTES.gold, p.colour2 ? PALETTES[p.colour2] : null, p.small ? 0.6 : 1);
       }
     }
     if (t > p.end) this.spend();
@@ -209,6 +232,7 @@ class Ladi extends C3 {
 class Bomb extends C3 {
   build() {
     const p = this.p;
+    if (p.shape) { this.buildShape(p); this.times = [p.bang, ...(p.extra || [])]; this.k = 0; return; }
     if (p.tube) { // bijli: a small red tube
       this.g.add(mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.08, 8), '#d9303a', 0, 0.04, 0));
       this.g.add(mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.015, 8), '#ffcf4a', 0, 0.05, 0));
@@ -227,10 +251,33 @@ class Bomb extends C3 {
     }
     this.times = [p.bang, ...(p.extra || [])]; this.k = 0;
   }
+  /** Bombs described by their plan: round, box, tube, big or pop (snappers). */
+  buildShape(p) {
+    const body = p.body || '#c48a50', band = p.band || '#7a5228', fuse = (x, y, z, rz) => { const f = mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.08, 3), '#c49a6c', x, y, z); f.rotation.z = rz; this.g.add(f); };
+    if (p.shape === 'box') {
+      this.g.add(mesh(new THREE.BoxGeometry(0.13, 0.11, 0.1), body, 0, 0.055, 0));
+      this.g.add(mesh(new THREE.BoxGeometry(0.135, 0.03, 0.105), band, 0, 0.06, 0));
+      fuse(0.04, 0.14, 0, -0.5); this.fuseLocal.set(0.06, 0.175, 0); this.radius = 0.08; this.mass = 0.8;
+    } else if (p.shape === 'tube') {
+      const t = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 8), body, 0, 0.02, 0); t.rotation.z = Math.PI / 2; this.g.add(t);
+      const b = mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.02, 8), band, 0, 0.02, 0); b.rotation.z = Math.PI / 2; this.g.add(b);
+      fuse(0.085, 0.03, 0, -1.2); this.fuseLocal.set(0.12, 0.045, 0); this.radius = 0.08; this.mass = 0.3;
+    } else if (p.shape === 'pop') {
+      for (let i = 0; i < 5; i++) { const m = mesh(new THREE.ConeGeometry(0.012, 0.03, 5), body, Math.cos(i * 1.3) * 0.04, 0.015, Math.sin(i * 1.3) * 0.04); m.rotation.z = rnd(-0.4, 0.4); this.g.add(m); }
+      this.fuseLocal.set(0, 0.04, 0); this.radius = 0.06; this.mass = 0.1;
+    } else { // round or big
+      const r = p.shape === 'big' ? 0.11 : p.small ? 0.05 : 0.065;
+      this.g.add(mesh(new THREE.IcosahedronGeometry(r, 1), body, 0, r, 0));
+      for (const a of [0, 1.1, 2.2]) { const t = mesh(new THREE.TorusGeometry(r * 1.03, 0.006, 3, 14), band, 0, r, 0); t.rotation.set(a, a * 0.7, 0); this.g.add(t); }
+      fuse(r * 0.45, r * 2.2, 0, -0.5); this.fuseLocal.set(r * 0.75, r * 2.2 + 0.035, 0); this.radius = r + 0.01; this.mass = p.shape === 'big' ? 1 : 0.6;
+    }
+    this.size = p.shape === 'pop' ? 0.2 : p.size * (p.big ? 1.1 : 1); this.paper = p.paper || body;
+  }
   tick(dt, t) {
     while (this.k < this.times.length && t >= this.times[this.k]) {
       const pos = this.g.position.clone(); pos.y = 0.05;
-      if (this.k > 0) { pos.x += rnd(-0.4, 0.4); pos.z += rnd(-0.4, 0.4); }
+      const spread = this.p.shape === 'pop' ? 0.25 : 0.4;
+      if (this.k > 0) { pos.x += rnd(-spread, spread); pos.z += rnd(-spread, spread); }
       this.w.bang(pos, this.size * (this.k ? 0.85 : 1), { paper: this.paper });
       this.g.visible = false; this.k++;
     }
@@ -248,6 +295,7 @@ class Sparkler extends C3 {
     if (p.pencil) this.g.add(mesh(new THREE.CylinderGeometry(0.0095, 0.0095, 0.06, 5), p.colour, 0, 0.46, 0));
     this.g.add(mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.1, 5), '#8a5a2b', 0, 0.05, 0));
     this.fuseLocal.set(0, 0.5, 0); this.radius = 0.06; this.mass = 0.2; this.noFuse = true;
+    if (p.small) this.g.scale.setScalar(0.45); // colour matches
   }
   /** Stuck in the ground at an angle (the "Place" action). */
   plant() { this.g.rotation.z = 0.35; this.g.position.y = -0.04; }
@@ -262,6 +310,7 @@ class Sparkler extends C3 {
         w.glowAt(tip, p.colour, 6 + 8 * k);
       } else {
         const cols = p.colours || ['#fff3c4', '#ffd27a', '#ffffff'];
+        if (p.twinkle && Math.random() < dt * 14) w.sparks.spawn({ x: tip.x, y: tip.y, z: tip.z, life: 0.12, size: 0.35, c: cols[Math.floor(Math.random() * cols.length)], grav: 0 });
         for (let i = this.count(300 * k, dt); i > 0; i--) {
           const z = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - z * z), s = rnd(1.2, 3.4);
           w.sparks.spawn({ x: tip.x, y: tip.y, z: tip.z, vx: r * Math.cos(a) * s, vy: z * s, vz: r * Math.sin(a) * s, life: rnd(0.12, 0.35), size: rnd(0.025, 0.04), c: cols[Math.floor(Math.random() * cols.length)], drag: 3, grav: 2, f: Math.random() < 0.35 ? F.SPLIT : 0 });
@@ -311,8 +360,18 @@ class Snake extends C3 {
 // ------------------------------------------------------------------ SKY SHOT (multi-shot cake)
 class SkyShot extends C3 {
   build() {
+    if (this.p.tube) { // roman candle or fancy shell: one upright tube
+      const big = this.p.big;
+      this.g.add(mesh(new THREE.CylinderGeometry(big ? 0.06 : 0.025, big ? 0.06 : 0.025, big ? 0.3 : 0.45, 10), big ? '#2f6fb0' : '#c8323c', 0, big ? 0.15 : 0.225, 0));
+      for (const y of big ? [0.12, 0.28] : [0.12, 0.25, 0.38]) this.g.add(mesh(new THREE.CylinderGeometry(big ? 0.062 : 0.027, big ? 0.062 : 0.027, 0.015, 10), '#ffcf4a', 0, y, 0));
+      this.g.add(mesh(new THREE.CylinderGeometry(big ? 0.1 : 0.06, big ? 0.1 : 0.06, 0.02, 10), '#5a3a22', 0, 0.01, 0));
+      this.top = big ? 0.3 : 0.45;
+      this.fuseLocal.set(big ? 0.08 : 0.045, 0.05, 0); this.radius = big ? 0.1 : 0.06; this.mass = 0.5; this.shellCol = '#3a2a2a';
+      this.k = 0; this.comets = [];
+      return;
+    }
     const big = this.p.shots.length > 15;
-    this.g.add(mesh(new THREE.BoxGeometry(0.28, big ? 0.3 : 0.24, 0.28), '#7b46b3', 0, big ? 0.15 : 0.12, 0));
+    this.g.add(mesh(new THREE.BoxGeometry(0.28, big ? 0.3 : 0.24, 0.28), this.p.shots.length > 40 ? '#c8323c' : this.p.shots.length < 6 ? '#ff5ec4' : '#7b46b3', 0, big ? 0.15 : 0.12, 0));
     this.g.add(mesh(new THREE.BoxGeometry(0.29, 0.03, 0.29), '#ffcf4a', 0, big ? 0.2 : 0.16, 0));
     this.top = big ? 0.3 : 0.24;
     for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) this.g.add(mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.01, 6), '#1b1030', i * 0.08, this.top + 0.004, j * 0.08));
@@ -325,16 +384,24 @@ class SkyShot extends C3 {
     while (this.k < p.shots.length && t >= p.shots[this.k].launch) {
       const s = p.shots[this.k++], from = this.g.localToWorld(new THREE.Vector3(rnd(-0.08, 0.08), this.top, rnd(-0.08, 0.08))), cam = w.camera.position;
       const dir = new THREE.Vector2(from.x - cam.x, from.z - cam.z).normalize().rotateAround(new THREE.Vector2(), rnd(-0.7, 0.7));
-      this.comets.push({ s, from, dir, H: 14 + 14 * s.height, pos: from.clone() });
+      this.comets.push({ s, from, dir, H: s.type === 'star' ? 9 + 8 * s.height : this.p.big ? 26 + 6 * s.height : 14 + 14 * s.height, pos: from.clone() });
       w.flash(from, '#ffb066', 14, 160);
       this.smokePuff(from, 0.7);
       w.sparks.spawn({ x: from.x, y: from.y + 0.1, z: from.z, life: 0.08, size: 0.8, c: '#fff1d6', grav: 0 });
     }
     this.comets = this.comets.filter((c) => {
-      const fl = c.s.burst - c.s.launch, u = Math.min(1, (t - c.s.launch) / fl), dx = (0.2 + Math.abs(c.s.drift)) * c.H * u;
+      const fl = c.s.burst - c.s.launch, u = Math.min(1, (t - c.s.launch) / fl), dx = (c.s.type === 'star' ? Math.abs(c.s.drift) * 0.3 : 0.2 + Math.abs(c.s.drift)) * c.H * u;
       c.pos.set(c.from.x + c.dir.x * dx, c.from.y + c.H * (1 - (1 - u) * (1 - u)), c.from.z + c.dir.y * dx);
+      if (c.s.type === 'star') { // a roman-candle ball: one bright coloured star, no burst
+        const col = (PALETTES[c.s.colour] || PALETTES.gold)[0];
+        w.sparks.spawn({ x: c.pos.x, y: c.pos.y, z: c.pos.z, life: 0.06, size: 0.5, c: col, grav: 0 });
+        for (let i = this.count(60, dt); i > 0; i--) w.sparks.spawn({ x: c.pos.x, y: c.pos.y, z: c.pos.z, vx: rnd(-0.3, 0.3), vy: rnd(-1, 0), vz: rnd(-0.3, 0.3), life: rnd(0.2, 0.4), size: 0.12, c: col, drag: 2, grav: 1 });
+        w.glowAt(c.pos, col, 6);
+        if (u >= 1) { for (let i = 0; i < 12; i++) w.sparks.spawn({ x: c.pos.x, y: c.pos.y, z: c.pos.z, vx: rnd(-1.5, 1.5), vy: rnd(-1.5, 1.5), vz: rnd(-1.5, 1.5), life: rnd(0.3, 0.6), size: 0.15, c: col, drag: 2, grav: 2 }); return false; }
+        return true;
+      }
       for (let i = this.count(140, dt); i > 0; i--) w.sparks.spawn({ x: c.pos.x, y: c.pos.y, z: c.pos.z, vx: rnd(-0.3, 0.3), vy: rnd(-1.5, -0.3), vz: rnd(-0.3, 0.3), life: rnd(0.2, 0.45), size: 0.08, c: '#ffcf6e', drag: 2, grav: 1.5 });
-      if (u >= 1) { w.burst(c.pos, c.s, PALETTES[c.s.colour] || PALETTES.gold, null, 0.85); return false; }
+      if (u >= 1) { w.burst(c.pos, c.s, PALETTES[c.s.colour] || PALETTES.gold, null, this.p.big ? 1.2 : 0.85); return false; }
       return true;
     });
     if (t > p.end) this.spend();

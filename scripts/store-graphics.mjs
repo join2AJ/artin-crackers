@@ -51,7 +51,7 @@ const show = (list, pitch, wait) => async (page) => {
   await page.evaluate(async (list) => {
     const P = window.__patakha, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const [id, yaw] of list) {
-      P.player.pitch = -0.5; P.player.yaw = yaw; P.player.apply(); P.select(id); P.setMode('place');
+      P.player.pitch = -0.5; P.player.yaw = yaw; P.player.apply(); P.select(id);
       const n = P.actives().length;
       await sleep(80); P.act();
       for (let i = 0; i < 100 && P.actives().length === n; i++) await sleep(50); // the sound renders first

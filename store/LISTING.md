@@ -27,19 +27,20 @@ Everything to paste into Play Console. Character limits are in brackets.
 >
 > Patakha is a 3D Diwali crackers game. Walk around your mohalla on Diwali night, set a cracker down, hold your agarbatti to the fuse and step back. Every cracker has its own sound, your phone vibrates with every blast, and the fireworks light up the houses around you.
 >
-> 🎆 CRACKERS
-> • Anar (flower pot): a roaring fountain of golden sparks
-> • Chakri: a ground spinner that skids about in a ring of fire
-> • Rocket: whistles up from its bottle and bursts over the rooftops
-> • Ladi: the 100-wala string, rat-a-tat-tat!
-> • Sutli Bomb: twine-wrapped thunder that knocks the cans flying
-> • Phuljhadi and Colour Pencil: hold them in your hand
-> • Bijli and Saanp Goli (snake tablet)
-> • Premium: Rainbow Anar, 1000-wala ladi, Sky Shot cakes and the Atom Bomb
+> 🎆 35 CRACKERS, 76 VARIANTS
+> • Fountains: Anar, Kothi Anar, Tiranga Anar, Rainbow and Mayur Anar
+> • Spinners: Chakri, Zameen Chakkar and the flying Udan Tashtari
+> • Rockets: Rocket, Baby Rocket, Thunder Rocket, Golden Rain
+> • Bombs: Sutli, Lakshmi, Aloo, Chocolate, Bullet, Bijli, Atom and Hydrogen
+> • Strings: Ladi, Chatpati, 1000-wala and 2000-wala
+> • Sky: Sky Shot, Chhota Cake, Grand Finale, Roman Candle, Fancy Shell
+> • Handheld: Phuljhadi, Colour Pencil, Twinkling Star, Colour Matches
+> • Plus Saanp Goli and Pop-Pop snappers
 >
 > ✨ FEATURES
 > • 4 maps: Mohalla Gali, Society, Village Chowk and Green Park, with toran lights, diyas and rangoli
-> • Easy controls: a short tutorial, a joystick to stroll and easy aim, so lighting a cracker is one tap
+> • Easy controls: a short tutorial, a joystick to stroll, easy aim and one button that knows what to do
+> • Wait & watch: sit back for a 1, 2 or 5-minute show that lights itself
 > • No ads while you play
 > • Light every fuse yourself with an agarbatti, candle or phuljhadi
 > • Flashlight for dark corners

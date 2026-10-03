@@ -653,3 +653,44 @@ button.tally { border: 0; cursor: pointer; }
 .tut-skip { top: auto; right: auto; left: 50%; transform: translateX(-50%); bottom: calc(14px + var(--safe-b)); }
 @media (max-height: 500px) { .hud-bl { top: calc(50px + var(--safe-t)); } .tut-text { top: 18%; } .tut-skip { top: auto; } }
 @media (max-width: 640px) { .tut-text { max-width: calc(100% - 40px); } }
+
+/* ============================================================ v0.10: readable text, show, privacy */
+/* text over busy art always gets a dark ink outline and a soft backing, so it stays readable */
+.splash-game, .splash-hi, .splash-tag, .splash-studio {
+  text-shadow: 3px 3px 0 #0b0414, -1px -1px 0 #0b0414, 1px -1px 0 #0b0414, -1px 1px 0 #0b0414, 0 0 18px rgba(11, 4, 20, 0.9);
+}
+.splash-hi { color: #ffe08a; }
+.splash-tag { color: #7dffc4; padding: 4px 12px; border-radius: 999px; background: rgba(11, 4, 20, 0.55); }
+.splash-studio { color: #fff4e6; padding: 3px 10px; border-radius: 999px; background: rgba(11, 4, 20, 0.55); }
+.splash-art circle[fill="url(#sp-glow)"] { opacity: 0.7; }
+.home { background: linear-gradient(90deg, rgba(2, 14, 9, 0.94), rgba(2, 14, 9, 0.7) 60%, rgba(2, 14, 9, 0.45)); }
+.home-head small { color: #7dffc4; text-shadow: 0 1px 3px #000; }
+.home-tip { color: #d6ebe0; text-shadow: 0 1px 3px #000; }
+.home h2 { text-shadow: 2px 2px 0 #07120d; }
+.hint { padding: 5px 12px; border-radius: 999px; background: rgba(2, 14, 9, 0.6); color: #fff4e6; }
+.toast { color: #fff; }
+@media (max-width: 640px) { .home { background: rgba(2, 14, 9, 0.88); } }
+
+/* one action button: the grid no longer has a mode row */
+.hud-br { grid-template-rows: auto; }
+
+/* wait and watch */
+.watch-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 8px; }
+.watch-opt { display: grid; justify-items: center; padding: 14px 6px; border: 2px solid var(--gold); border-radius: 12px; background: rgba(255, 200, 87, 0.1); color: var(--text); }
+.watch-opt b { font-family: var(--f-brand); font-size: 34px; line-height: 1; color: var(--gold); }
+.watch-opt span { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.watch-opt:active { transform: scale(0.96); background: rgba(255, 200, 87, 0.22); }
+.show-pill { position: absolute; left: 50%; top: calc(10px + var(--safe-t)); transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px;
+  border: 2px solid #07120d; background: var(--gold); color: #1a1205; font-family: var(--f-brand); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; box-shadow: 2px 2px 0 #07120d; }
+.show-pill svg { width: 14px; height: 14px; }
+.show-pill span { text-decoration: underline; }
+
+/* privacy in the app's own colours, with a real back button */
+#privacy { z-index: 60; }
+.privacy-sheet { width: min(720px, 100%); height: 100%; display: flex; flex-direction: column; }
+.privacy-sheet .sheet-head { position: sticky; top: -18px; z-index: 1; margin: -18px -18px 8px; padding: 12px 18px; background: #0b2219; box-shadow: 0 1px 0 var(--line); }
+.back-btn { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 6px 12px 6px 6px; border-radius: 999px; background: var(--acc-soft); color: var(--acc); font-family: var(--f-brand); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+.back-btn svg { width: 18px; height: 18px; }
+.privacy-body { color: #d6ebe0; font-size: 14.5px; line-height: 1.6; }
+.privacy-body h2 { font-family: var(--f-brand); color: var(--gold); letter-spacing: 0.06em; text-transform: uppercase; font-size: 14px; margin: 18px 0 4px; }
+.privacy-body .muted { color: var(--muted); }

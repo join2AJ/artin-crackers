@@ -1,7 +1,7 @@
 // Offline cache: the app shell is cached on install; everything is served
 // cache-first and refreshed in the background, so updates land on the next visit.
 // Bump CACHE whenever shipped web files change.
-const CACHE = 'patakha-v9';
+const CACHE = 'patakha-v10';
 const SHELL = [
   './', 'index.html', 'privacy.html', 'version.json', 'manifest.webmanifest',
   'css/app.css', 'css/fonts.css',

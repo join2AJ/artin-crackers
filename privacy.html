@@ -5,16 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Privacy Policy — Patakha by ARTIN Studios</title>
   <link rel="stylesheet" href="css/fonts.css" />
+  <meta name="theme-color" content="#03100b" />
   <style>
-    body { margin: 0; background: #07040f; color: #ddd0e2; font: 16px/1.65 'Barlow', system-ui, sans-serif; }
-    main { max-width: 760px; margin: 0 auto; padding: 32px 20px 60px; }
+    body { margin: 0; background: radial-gradient(ellipse at 50% 0%, #0f3a28, #03100b 60%) fixed; color: #d6ebe0; font: 16px/1.65 'Barlow', system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 18px 20px 60px; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; padding: 7px 14px; border-radius: 999px; background: rgba(46, 229, 157, 0.14); box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.4); color: #2ee59d; font-family: 'Chakra Petch', sans-serif; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; text-decoration: none; }
     h1 { font-family: 'Chakra Petch', sans-serif; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; margin: 0 0 4px; }
-    h2 { font-family: 'Chakra Petch', sans-serif; color: #ffb627; letter-spacing: .06em; text-transform: uppercase; font-size: 16px; margin: 28px 0 6px; }
-    .muted { color: #9a8aa8; } a { color: #ffb627; }
+    h2 { font-family: 'Chakra Petch', sans-serif; color: #ffc857; letter-spacing: .06em; text-transform: uppercase; font-size: 16px; margin: 28px 0 6px; }
+    .muted { color: #a6c4b6; } a { color: #2ee59d; }
   </style>
 </head>
 <body>
 <main>
+  <a class="back-link" href="index.html" onclick="if (history.length > 1) { history.back(); return false; }">&larr; Back to Patakha</a>
   <h1>Privacy Policy</h1>
   <p class="muted">Patakha — Diwali Crackers Simulator · ARTIN Studios · Effective 3 October 2026</p>
 
@@ -54,5 +57,9 @@
   <h2>Changes and contact</h2>
   <p>If this policy changes, the updated version will be posted on this page with a new effective date. Questions: <a href="mailto:artinstudios.official@gmail.com">artinstudios.official@gmail.com</a>.</p>
 </main>
+<script>
+  // Android back button: return to the game instead of closing the app
+  window.artinBack = () => { if (history.length > 1) history.back(); else location.href = 'index.html'; return true; };
+</script>
 </body>
 </html>

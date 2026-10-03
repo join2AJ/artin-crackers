@@ -102,9 +102,9 @@ function count(def, sp) {
 }
 // Variants: each one gets its own sound cache key (e.g. 'anar:silver').
 const vdefs = {};
-function withVariant(def) {
+function withVariant(def, pick = null) {
   if (!def.variants) return def;
-  const v = settings.variants?.[def.id] && def.variants.some((x) => x.id === settings.variants[def.id]) ? settings.variants[def.id] : def.variants[0].id;
+  const v = pick && def.variants.some((x) => x.id === pick) ? pick : settings.variants?.[def.id] && def.variants.some((x) => x.id === settings.variants[def.id]) ? settings.variants[def.id] : def.variants[0].id;
   const key = def.id + ':' + v;
   return (vdefs[key] ||= { ...def, id: key, base: def.id, variant: v, plan: (r) => def.plan(r, v) });
 }
@@ -154,7 +154,7 @@ function ignite(c) {
     for (const f of (TORCH[c.def.kind] || (() => []))(v.plan)) torchTimers.push(setTimeout(() => Torch.flash(f.ms), Math.max(0, h.when - performance.now() + f.t * 1000)));
     if (torchTimers.length > 400) torchTimers = torchTimers.slice(-200);
   }
-  count(c.def, toScreen(c.fuseTip(tmp)));
+  count(c.def, show ? null : toScreen(c.fuseTip(tmp)));
   hint(null);
 }
 /** Positional sound: pan and distance follow the player. */
@@ -216,7 +216,7 @@ function findTarget() {
     test(c.g.position, c.radius + 0.2, 4.2, { kind: 'cracker', c });
   }
   if (held?.kind === 'cracker' && !held.c.lit) best = { kind: 'cracker', c: held.c };
-  for (const b of world.bodies) if (b.kind === 'prop' && !b.held) test(b.p, b.r + 0.2, 3, { kind: 'prop', b });
+  for (const b of world.bodies) if (b.kind === 'prop' && !b.held) test(b.p, b.r + 0.1, 2.2, { kind: 'prop', b });
   for (const dd of world.diyas) if (!dd.lit) test(dd.flame, 0.22, 3, { kind: 'diya', d: dd });
   // easy aim: no exact aim needed, the nearest unlit cracker in front of you (or right beside you) counts
   if (!best && settings.easyAim) {
@@ -231,18 +231,16 @@ function findTarget() {
   }
   return best;
 }
-/** The action button's job right now: { id, label, enabled }. */
+/** The action button's job right now: { id, label, on }. It picks itself from what you hold and look at. */
 function currentAction() {
-  const m = settings.mode, def = byId[settings.sel];
+  const def = byId[settings.sel];
   if (lighting) return { id: 'wait', label: 'Lighting…', on: false };
   if (held?.kind === 'prop') return { id: 'throw', label: 'Throw', on: true };
-  if (target?.kind === 'cracker') {
-    if (m === 'pick' && !target.c.body.held) return { id: 'pickc', label: 'Pick up', on: true };
-    return { id: 'light', label: 'Light', on: true };
-  }
+  if (held?.kind === 'cracker' && held.c.lit) return { id: 'drop', label: 'Put down', on: true };
+  if (target?.kind === 'cracker') return { id: 'light', label: 'Light', on: true };
   if (target?.kind === 'diya') return { id: 'diya', label: 'Light diya', on: true };
-  if (m === 'pick') return target?.kind === 'prop' ? { id: 'pickp', label: 'Pick up', on: true } : { id: 'none', label: 'Pick', on: false };
-  if (m === 'hold') return held?.kind === 'cracker' && held.c.lit ? { id: 'drop', label: 'Drop', on: true } : { id: 'hold', label: 'Hold', on: def.kind === 'phuljhadi' };
+  if (target?.kind === 'prop') return { id: 'pickp', label: 'Pick up', on: true };
+  if (def.kind === 'phuljhadi') return { id: 'hold', label: 'Hold', on: true };
   return { id: 'place', label: 'Place', on: true };
 }
 let lastAct = '';
@@ -266,24 +264,16 @@ function updateHud() {
 function act() {
   Audio.unlock();
   const a = currentAction();
-  if (!a.on) { if (a.id === 'hold') hold(); else if (a.id === 'none') toast('Look at a ball, can or bucket to pick it up'); return; }
+  if (!a.on) return;
   if (a.id === 'place') place();
   else if (a.id === 'hold') hold();
   else if (a.id === 'light') startLighting(target);
   else if (a.id === 'diya') startLighting(target);
   else if (a.id === 'throw') throwHeld();
   else if (a.id === 'drop') { const c = held.c; c.g.removeFromParent(); world.scene.add(c.g); c.g.position.copy(world.aimGround(1.2)); c.g.rotation.set(0, player.yaw, 0); c.plant(); c.body.held = false; held = null; }
-  else if (a.id === 'pickc') { target.c.remove(); actives = actives.filter((x) => x !== target.c); toast('Back in the box'); Haptics.tap(6); }
   else if (a.id === 'pickp') { dropHeld(); held = { kind: 'prop', b: target.b }; target.b.held = true; Haptics.tap(6); }
 }
 $('#btnAct').addEventListener('pointerdown', (e) => { e.preventDefault(); act(); });
-function setMode(m) {
-  settings.mode = m; save(); Audio.tick();
-  document.querySelectorAll('#modes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
-  if (m !== 'pick' && held?.kind === 'prop') dropHeld();
-  lastAct = '';
-}
-document.querySelectorAll('#modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.m)));
 
 // ------------------------------------------------------------------ lighter and flashlight
 function setLighter(on) {
@@ -376,7 +366,7 @@ function frame(now) {
   lighter.update(dt, world.time);
   world.update(dt, playing ? player : null, wind);
   for (const c of actives) if (c.sound && !c.spent) placeSound(c);
-  if (playing) { updateHud(); if (!paused) stepTutorial(dt); }
+  if (playing) { updateHud(); if (!paused) stepTutorial(dt); stepShow(now); }
   if (settings.ambient && Audio.ctx && now > nextAmbient) { nextAmbient = now + 5000 + Math.random() * 9000; ambient(); }
   world.render();
   if (settings.fps) { fpsN++; if (now - fpsT > 500) { $('#fps').textContent = Math.round((fpsN * 1000) / (now - fpsT)) + ' fps'; fpsN = 0; fpsT = now; } }
@@ -397,6 +387,64 @@ async function ambient() {
 }
 let ambientTimers = [], ambientSounds = [];
 
+
+// ------------------------------------------------------------------ wait and watch: an automatic show
+// Pick 1, 2 or 5 minutes and sit back: crackers are set up and lit around you, with a finale at the end.
+let show = null;
+const SHOW_WEIGHT = { rocket: 4, skyshot: 3, anar: 3, chakri: 2, ladi: 1, bomb: 1 };
+function startShow(sec) {
+  closeSheet('#watch'); Audio.unlock(); Audio.tick();
+  const pool = CRACKERS.filter((c) => SHOW_WEIGHT[c.kind] && !Store.locked(c.id) && c.id !== 'hazaar' && c.id !== 'dohazaar' && c.id !== 'grand');
+  const now = performance.now();
+  show = { pool, total: pool.reduce((a, c) => a + SHOW_WEIGHT[c.kind], 0), t0: now, end: now + sec * 1000, next: now + 400, finale: 0 };
+  setLighter(false);
+  $('#showPill').hidden = false; $('#btnShow').setAttribute('aria-pressed', 'true');
+  toast(`Wait and watch: a ${sec / 60}-minute show. Shubh Deepavali!`);
+}
+function stopShow(msg) {
+  if (!show) return;
+  show = null;
+  $('#showPill').hidden = true; $('#btnShow').setAttribute('aria-pressed', 'false');
+  if (msg) toast(msg);
+}
+function showSpot() {
+  const f = player.forward(new THREE.Vector3()).setY(0).normalize(), r = player.right(new THREE.Vector3());
+  const p = player.pos.clone().addScaledVector(f, 5 + Math.random() * 6).addScaledVector(r, (Math.random() - 0.5) * 8);
+  const o = world.collide(p.x, p.z, 0.4); p.set(o.x, 0, o.z);
+  return p;
+}
+async function showCracker(def) {
+  const vd = withVariant(def, def.variants ? def.variants[Math.floor(Math.random() * def.variants.length)].id : null);
+  const v = await Audio.variant(vd);
+  if (!show) return;
+  const c = new KINDS[def.kind](world, vd, v, showSpot(), Math.random() * Math.PI * 2);
+  actives.push(c); ignite(c); Audio.warm(vd);
+}
+function stepShow(now) {
+  if (!show) return;
+  const left = Math.max(0, show.end - now), m = Math.floor(left / 60000), sec = Math.floor((left % 60000) / 1000);
+  $('#showTime').textContent = `${m}:${String(sec).padStart(2, '0')}`;
+  const live = actives.filter((c) => c.lit && !c.done).length;
+  if (left <= 0) { // finale: a volley of rockets and a big cake, then the show ends
+    if (!show.finale) {
+      show.finale = now;
+      const sky = show.pool.filter((c) => c.kind === 'rocket' || c.kind === 'skyshot');
+      for (let i = 0; i < 6; i++) setTimeout(() => show && showCracker(sky[Math.floor(Math.random() * sky.length)] || byId.rocket), i * 350);
+    } else if (now - show.finale > 9000) stopShow('Show over. Shubh Deepavali!');
+    return;
+  }
+  if (now >= show.next && live < 8) {
+    let r = Math.random() * show.total, def = show.pool[0];
+    for (const c of show.pool) if ((r -= SHOW_WEIGHT[c.kind]) <= 0) { def = c; break; }
+    showCracker(def);
+    const busy = (now - show.t0) / (show.end - show.t0); // a little faster towards the end
+    show.next = now + (1500 + Math.random() * 1800) * (1 - busy * 0.4);
+  }
+}
+$('#btnShow').addEventListener('click', () => { Audio.unlock(); Audio.tick(); if (show) stopShow('Show stopped'); else openSheet('#watch'); });
+document.querySelectorAll('#watch [data-min]').forEach((b) => b.addEventListener('click', () => startShow(+b.dataset.min * 60)));
+$('#showPill').addEventListener('click', () => stopShow('Show stopped'));
+
 // ------------------------------------------------------------------ mute and clear
 function setMuted(m) {
   settings.muted = m; save();
@@ -410,6 +458,7 @@ $('#btnMute').addEventListener('click', () => { Audio.unlock(); setMuted(!settin
 
 /** Stop everything at once: sounds, vibration, flashlight, sparks and every cracker. */
 function clearAll() {
+  stopShow();
   for (const c of actives) { c.sound?.stop(0.06); c.remove(); }
   actives = []; lighting = null;
   if (held?.kind === 'cracker') held = null; else dropHeld();
@@ -653,7 +702,7 @@ const TUT = [
 ];
 function startTutorial() {
   closeSheet('#settings');
-  settings.sel = 'anar'; settings.mode = 'place'; save(); refreshTray(); setMode('place');
+  settings.sel = 'anar'; save(); refreshTray(); lastAct = '';
   tut = { step: -1, moved: 0, time: 0, last: player.pos.clone() };
   $('#tut').hidden = false;
   nextTutStep();
@@ -696,6 +745,27 @@ function endTutorial(finished) {
 }
 $('#tutSkip').addEventListener('click', () => { Audio.tick(); endTutorial(false); hint('Press Place to set a cracker down', true); });
 $('#rewGo').addEventListener('click', () => { Audio.tick(); $('#reward').hidden = true; refreshTray(); hint('Open the Shop for more crackers', true); });
+
+
+// ------------------------------------------------------------------ privacy policy, inside the app
+// Opening privacy.html would leave the game (and the back button would close the app), so it is shown in a sheet.
+async function openPrivacy(e) {
+  e?.preventDefault();
+  Audio.tick();
+  if (!$('#privBody').childElementCount) {
+    try {
+      const html = await (await fetch('privacy.html')).text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const main = doc.querySelector('main');
+      main.querySelector('h1')?.remove();
+      main.querySelectorAll('.back-link').forEach((el) => el.remove());
+      main.querySelectorAll('a[href^="http"]').forEach((a) => { a.target = '_blank'; a.rel = 'noopener'; });
+      $('#privBody').innerHTML = main.innerHTML;
+    } catch { $('#privBody').innerHTML = '<p>Could not load the privacy policy. Please try again.</p>'; }
+  }
+  $('#privacy').hidden = false;
+}
+document.querySelectorAll('#lnkPrivacy, #lnkPrivacy2').forEach((a) => a.addEventListener('click', openPrivacy));
 
 // ------------------------------------------------------------------ first launch: privacy
 function needConsent(then) {
@@ -745,6 +815,7 @@ function makeThumbs() {
 }
 function showHome() {
   if (tut) endTutorial(false);
+  stopShow();
   playing = false; setLighter(false); lighting = null; dropHeld();
   $('#hud').hidden = true; $('#home').hidden = false; $('#rotate').hidden = true; $('#micPill').hidden = true;
   if (Mic.on) { Mic.stop(); $('#btnDiya').setAttribute('aria-pressed', 'false'); }
@@ -866,8 +937,6 @@ function select(id, user = false) {
   refreshTray();
   if (!$('#variantBar').hidden) renderVariants();
   if (user) {
-    if (def.kind === 'phuljhadi' && settings.mode === 'place') setMode('hold');
-    if (def.kind !== 'phuljhadi' && settings.mode === 'hold') setMode('place');
     hint(def.kind === 'phuljhadi' ? `Press Hold to take a ${def.name} in your hand` : `Look at the ground and press Place to set down the ${def.name}`, true);
   }
   lastAct = '';
@@ -910,7 +979,7 @@ function toast(msg) {
 }
 
 // ------------------------------------------------------------------ sheets
-const sheets = ['#settings', '#box', '#unlock', '#impact', '#about', '#card', '#manual'];
+const sheets = ['#settings', '#box', '#unlock', '#impact', '#about', '#card', '#manual', '#watch', '#privacy'];
 function openSheet(sel) { $(sel).hidden = false; player.move.x = player.move.y = 0; }
 function closeSheet(sel) { $(sel).hidden = true; }
 function sheetOpen() { return sheets.some((s) => !$(s).hidden); }
@@ -1086,7 +1155,6 @@ window.addEventListener('keydown', (e) => {
   if (k === 'c') $('#btnClear').click();
   if (k === 'f') $('#btnTorch').click();
   if (k === 'l') $('#btnLighter').click();
-  if (k === 'q') { const ms = ['place', 'hold', 'pick']; setMode(ms[(ms.indexOf(settings.mode) + 1) % 3]); }
   if (k === 'e' || k === ' ' || k === 'enter') { e.preventDefault(); if (!e.repeat) act(); }
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= 9 && CRACKERS[n - 1]) select(CRACKERS[n - 1].id, true);
@@ -1110,7 +1178,7 @@ function start() {
   Mic.sensitivity = settings.micSens; setMuted(settings.muted);
   lighter.setKind(settings.lighter); player.bobOn = settings.bob; world.shakeOn = settings.shake;
   $('#fps').hidden = !settings.fps;
-  updateEcoMeter(); refreshTray(); setMode(settings.mode);
+  updateEcoMeter(); refreshTray();
   makeThumbs();
   loadMap(settings.map);
   resize();
@@ -1129,5 +1197,7 @@ function start() {
 
 if ('serviceWorker' in navigator && !NATIVE && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 // test hook for automated tests: ?debug
-if (new URLSearchParams(location.search).has('debug')) window.__patakha = { world, player, lighter, actives: () => actives, act, setMode, select, startGame, target: () => target };
+if (new URLSearchParams(location.search).has('debug')) window.__patakha = { world, player, lighter, actives: () => actives, act, select, startGame, target: () => target,
+  catalogue: () => CRACKERS.map((c) => [c.id, c.variants ? c.variants.map((v) => v.id) : [null]]), setVariant: (id, v) => { settings.variants[id] = v; },
+  clear: clearAll, held: () => held, action: () => currentAction().id, startShow, show: () => show, store: Store };
 start();
