@@ -9,6 +9,30 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-03 · Play build 9
+### Added
+- **First-run tutorial**, step by step:
+  - "Slide on the joystick to walk" and "Slide here to look around", with the other half of the screen dimmed and an animated hand;
+  - then Place and Light, with the action button highlighted;
+  - then a reminder to step back.
+
+  It ends with a **reward pop-up**: the Rainbow Anar free for 24 hours (when it is locked), the first-cracker and Seedling rewards. You can skip it, and replay it from Settings → Controls.
+- **Privacy screen on first launch:** it says what stays on the phone, that the mic is only checked live, and where ads appear, with a link to the Privacy Policy.
+- **Easy aim** (on by default; Settings → Controls). Light lights the nearest unlit cracker in front of you or right beside you, so no precise aiming is needed.
+- New splash screen: a Diwali-night poster with rooftops, a temple, toran lights, diyas and fireworks.
+- `Store.grant()` for free 24-hour unlocks given as rewards.
+### Changed
+- **No ads while you play.** The banner now shows only on the map-select menu, and never during the game. It used to sit under the game and shrink the screen. Privacy policy and listing updated.
+- **Easier movement:**
+  - the joystick is always drawn bottom-left with arrows, and you can slide anywhere on the left side to push it;
+  - it has a small dead zone and a gentle curve, so small pushes walk slowly;
+  - the walk is slower (2.6 m/s);
+  - head bob is off by default, and look sensitivity is a little lower.
+- Placing no longer needs you to look at the ground: looking level or up puts the cracker about 2 m in front of you.
+- Lighter and Torch buttons moved to the top-right, out of the joystick's way.
+- First-person hand: a blocky fist with fingers, a thumb and a saffron kurta sleeve.
+- Service worker cache `patakha-v9`.
+
 ## [0.8.0] — 2026-10-03 · Play build 8 · `4c2378d`
 ### Added
 - **Patakha is now a 3D game.** Walk around a low-poly Indian neighbourhood on Diwali night in first person, set crackers down and light them yourself. Built with Three.js r170 (MIT, vendored in `js/vendor/`) and cel-shaded toon materials for the comic look.

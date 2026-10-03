@@ -33,7 +33,7 @@ browser = await pw.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-r
 async function shoot(name, map, script) {
   const ctx = await browser.newContext({ viewport: { width: 720, height: 405 }, deviceScaleFactor: 1080 / 405, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  await page.addInitScript((m) => { localStorage.setItem('patakha:played3d', 'true'); localStorage.setItem('patakha:settings', JSON.stringify({ map: m, quality: 'high' }));
+  await page.addInitScript((m) => { localStorage.setItem('patakha:consented', 'true'); localStorage.setItem('patakha:tutorial', 'true'); localStorage.setItem('patakha:settings', JSON.stringify({ map: m, quality: 'high' }));
     // badges already earned, so no pop-up covers the shot
     localStorage.setItem('patakha:impact', JSON.stringify({ count: 120, co2: 3200, smoke: 900, pm: 10390, loud: 40 })); }, map);
   await page.goto(`${BASE}/?storetest&debug`);

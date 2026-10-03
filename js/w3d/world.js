@@ -510,13 +510,14 @@ export class World {
       this.shakeAmt *= 0.86;
     } else this.renderer.render(this.scene, this.camera);
   }
-  /** Ground point under the screen centre, within `max` metres (null if looking up). */
-  aimGround(max = 4.5) {
+  /** Ground point under the screen centre, between `min` and `max` metres away (horizontally).
+   *  Looking level or up gives a spot `fallback` metres in front, so placing never needs careful aiming. */
+  aimGround(max = 4.5, min = 1.2, fallback = 2.2) {
     const c = this.camera, d = new THREE.Vector3(0, 0, -1).applyQuaternion(c.quaternion), o = c.position;
-    let t = d.y < -0.05 ? -o.y / d.y : Infinity;
-    if (t > max) { t = max; }
-    const p = o.clone().addScaledVector(d, t); p.y = 0;
-    return p;
+    const h = Math.hypot(d.x, d.z) || 1;
+    let dist = d.y < -0.08 ? (-o.y / d.y) * h : fallback;
+    dist = Math.max(min, Math.min(max, dist));
+    return new THREE.Vector3(o.x + (d.x / h) * dist, 0, o.z + (d.z / h) * dist);
   }
 }
 export { INK };

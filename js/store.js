@@ -75,6 +75,12 @@ export const Store = {
     if (!BACKEND.showRewarded(token)) { this.pending.delete(token); return false; }
     return true;
   },
+  /** A free 24 h unlock as a reward (tutorial). Returns true if it unlocked something new. */
+  grant(id, hours = UNLOCK_HOURS) {
+    if (!this.locked(id)) return false;
+    this.unlocks['c:' + id] = Date.now() + hours * 3600e3; ls.set('unlocks', this.unlocks); this.emit();
+    return true;
+  },
   buy(id) { return !!BACKEND && BACKEND.buy(id); },
   restore() { if (BACKEND) BACKEND.restore(); },
   privacyOptionsRequired() { return !!BACKEND && BACKEND.privacyOptionsRequired(); },

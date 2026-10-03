@@ -15,7 +15,7 @@ import { Player, Lighter, LIGHTERS } from './w3d/player.js';
 const $ = (s) => document.querySelector(s);
 const weak = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
 const settings = Object.assign({ variants: {}, vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, micSens: 0.8, lighter: 'agarbatti', shakeLight: false, cardStyle: 'green', cardMsg: 'green',
-  map: 'gali', quality: weak ? 'low' : 'medium', look: 1, invert: false, bob: true, fps: false, mode: 'place' }, ls.get('settings', {}));
+  map: 'gali', quality: weak ? 'low' : 'medium', look: 0.85, invert: false, bob: false, fps: false, mode: 'place', easyAim: true }, ls.get('settings', {}));
 const save = () => ls.set('settings', settings);
 if (!byId[settings.sel]) settings.sel = 'anar';
 if (!MAPS[settings.map]) settings.map = 'gali';
@@ -117,7 +117,6 @@ async function place() {
   if (Store.locked(def.id)) { openUnlock(def); return; }
   if (actives.filter((c) => !c.spent).length >= MAX_LIVE) { toast('Light these first'); return; }
   const aim = world.aimGround(3.5);
-  if (aim.distanceTo(tmp.set(player.pos.x, 0, player.pos.z)) < 0.6) { toast('Look down at the ground in front of you'); return; }
   const o = world.collide(aim.x, aim.z, 0.25);
   aim.x = o.x; aim.z = o.z;
   const vd = withVariant(def), v = await Audio.variant(vd);
@@ -219,6 +218,17 @@ function findTarget() {
   if (held?.kind === 'cracker' && !held.c.lit) best = { kind: 'cracker', c: held.c };
   for (const b of world.bodies) if (b.kind === 'prop' && !b.held) test(b.p, b.r + 0.2, 3, { kind: 'prop', b });
   for (const dd of world.diyas) if (!dd.lit) test(dd.flame, 0.22, 3, { kind: 'diya', d: dd });
+  // easy aim: no exact aim needed, the nearest unlit cracker in front of you (or right beside you) counts
+  if (!best && settings.easyAim) {
+    let bd = Infinity;
+    const fx = Math.sin(-player.yaw), fz = -Math.cos(player.yaw);
+    for (const c of actives) {
+      if (c.done || c.lit || c.body.held || c.spent) continue;
+      const dx = c.g.position.x - player.pos.x, dz = c.g.position.z - player.pos.z, dist = Math.hypot(dx, dz);
+      const front = dist > 0.01 ? (dx * fx + dz * fz) / dist : 1;
+      if ((dist < 4.5 && front > 0.75) || dist < 1.6) if (dist < bd) { bd = dist; best = { kind: 'cracker', c }; }
+    }
+  }
   return best;
 }
 /** The action button's job right now: { id, label, enabled }. */
@@ -294,14 +304,16 @@ $('#btnTorch').addEventListener('click', () => { Audio.unlock(); Audio.tick(); s
 const touchEl = $('#touch'), joyEl = $('#joy'), knob = joyEl.querySelector('i');
 let joy = null, lookP = null;
 const JR = 52;
+let lookDX = 0, lookDY = 0;
 touchEl.addEventListener('pointerdown', (e) => {
   Audio.unlock();
   if (!playing) return;
   if (e.pointerType !== 'mouse' && e.clientX < window.innerWidth * 0.42 && !joy) {
+    // the stick stays where it is drawn: slide anywhere on the left half to push it
     joy = { id: e.pointerId, x: e.clientX, y: e.clientY };
-    joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.hidden = false; knob.style.transform = '';
+    joyEl.classList.add('on');
   } else if (!lookP) lookP = { id: e.pointerId, x: e.clientX, y: e.clientY };
-  touchEl.setPointerCapture(e.pointerId);
+  try { touchEl.setPointerCapture(e.pointerId); } catch { /* synthetic or finished pointer */ }
 });
 touchEl.addEventListener('pointermove', (e) => {
   if (joy && e.pointerId === joy.id) {
@@ -309,16 +321,19 @@ touchEl.addEventListener('pointermove', (e) => {
     const m = Math.hypot(dx, dy);
     if (m > JR) { dx *= JR / m; dy *= JR / m; }
     knob.style.transform = `translate(${dx}px, ${dy}px)`;
-    player.move.x = dx / JR; player.move.y = -dy / JR;
-    player.run = m > JR * 1.6;
+    // a small dead zone, then a gentle curve so small pushes walk slowly
+    const k = Math.max(0, (Math.min(m, JR) - 6) / (JR - 6)), ang = Math.atan2(dy, dx), sp = k * k * 0.6 + k * 0.4;
+    player.move.x = Math.cos(ang) * sp; player.move.y = -Math.sin(ang) * sp;
   } else if (lookP && e.pointerId === lookP.id) {
     const k = 0.0042 * settings.look * (e.pointerType === 'mouse' ? 0.8 : 1);
-    player.look((e.clientX - lookP.x) * k, (e.clientY - lookP.y) * k * (settings.invert ? -1 : 1));
+    const dx = (e.clientX - lookP.x) * k, dy = (e.clientY - lookP.y) * k * (settings.invert ? -1 : 1);
+    player.look(dx, dy);
+    lookDX += Math.abs(dx); lookDY += Math.abs(dy);
     lookP.x = e.clientX; lookP.y = e.clientY;
   }
 });
 const endTouch = (e) => {
-  if (joy && e.pointerId === joy.id) { joy = null; joyEl.hidden = true; player.move.x = player.move.y = 0; player.run = false; }
+  if (joy && e.pointerId === joy.id) { joy = null; joyEl.classList.remove('on'); knob.style.transform = ''; player.move.x = player.move.y = 0; }
   if (lookP && e.pointerId === lookP.id) lookP = null;
 };
 touchEl.addEventListener('pointerup', endTouch);
@@ -361,7 +376,7 @@ function frame(now) {
   lighter.update(dt, world.time);
   world.update(dt, playing ? player : null, wind);
   for (const c of actives) if (c.sound && !c.spent) placeSound(c);
-  if (playing) updateHud();
+  if (playing) { updateHud(); if (!paused) stepTutorial(dt); }
   if (settings.ambient && Audio.ctx && now > nextAmbient) { nextAmbient = now + 5000 + Math.random() * 9000; ambient(); }
   world.render();
   if (settings.fps) { fpsN++; if (now - fpsT > 500) { $('#fps').textContent = Math.round((fpsN * 1000) / (now - fpsT)) + ' fps'; fpsN = 0; fpsT = now; } }
@@ -625,6 +640,70 @@ $('#btnCardShare').addEventListener('click', () => {
 });
 
 
+
+// ------------------------------------------------------------------ first-run tutorial
+// Like a game's first level: walk, look, place, light, step back. Each step waits for you to do it.
+let tut = null;
+const TUT = [
+  { text: 'Slide on the joystick to walk.', side: 'left', done: (t) => t.moved > 1.2 || actives.length > 0 },
+  { text: 'Slide here to look around.', side: 'right', done: () => lookDX + lookDY > 0.45 || actives.length > 0 },
+  { text: 'Press PLACE to set an Anar down in front of you.', point: '#btnAct', done: () => actives.some((c) => !c.spent && !c.lit) },
+  { text: 'Press LIGHT. Your agarbatti lights the fuse.', point: '#btnAct', done: () => actives.some((c) => c.lit) },
+  { text: 'Step back and enjoy! Never stand over a lit cracker.', side: 'left', done: (t) => t.time > 5 },
+];
+function startTutorial() {
+  closeSheet('#settings');
+  settings.sel = 'anar'; settings.mode = 'place'; save(); refreshTray(); setMode('place');
+  tut = { step: -1, moved: 0, time: 0, last: player.pos.clone() };
+  $('#tut').hidden = false;
+  nextTutStep();
+}
+function nextTutStep() {
+  tut.step++; tut.time = 0; lookDX = lookDY = 0;
+  const st = TUT[tut.step];
+  if (!st) { endTutorial(true); return; }
+  Audio.tick(); Haptics.tap(8);
+  $('#tutText').textContent = st.text;
+  const shade = $('#tutShade'), ring = $('#tutRing'), hand = $('#tutHand');
+  shade.className = 'tut-shade' + (st.side ? ' ' + st.side : '');
+  ring.hidden = !st.point; hand.classList.remove('slide', 'tap');
+  if (st.point) {
+    const r = $(st.point).getBoundingClientRect();
+    Object.assign(ring.style, { left: r.left - 8 + 'px', top: r.top - 8 + 'px', width: r.width + 16 + 'px', height: r.height + 16 + 'px' });
+    Object.assign(hand.style, { left: r.left + r.width * 0.45 + 'px', top: r.top + r.height * 0.55 + 'px' });
+    hand.classList.add('tap');
+  } else if (st.side) {
+    const j = joyEl.getBoundingClientRect();
+    Object.assign(hand.style, st.side === 'left' ? { left: j.left + j.width * 0.45 + 'px', top: j.top + j.height * 0.4 + 'px' } : { left: window.innerWidth * 0.68 + 'px', top: window.innerHeight * 0.45 + 'px' });
+    hand.classList.add('slide');
+  }
+  hand.style.display = tut.step === TUT.length - 1 ? 'none' : '';
+}
+function stepTutorial(dt) {
+  if (!tut) return;
+  tut.time += dt;
+  tut.moved += player.pos.distanceTo(tut.last); tut.last.copy(player.pos);
+  if (TUT[tut.step].done(tut)) nextTutStep();
+}
+function endTutorial(finished) {
+  tut = null; $('#tut').hidden = true;
+  ls.set('tutorial', true);
+  if (!finished) return;
+  const items = [['🎆', 'First cracker lit', 'Zero smoke'], ['🌱', 'Seedling', 'Green badge']];
+  if (Store.grant('rainbow')) items.unshift(['🌈', 'Rainbow Anar', 'Free for 24 hours']);
+  $('#rewItems').innerHTML = items.map(([i, b, sm]) => `<div class="rew-item"><i aria-hidden="true">${i}</i><b>${b}</b><small>${sm}</small></div>`).join('');
+  $('#reward').hidden = false; Haptics.tap(30);
+}
+$('#tutSkip').addEventListener('click', () => { Audio.tick(); endTutorial(false); hint('Press Place to set a cracker down', true); });
+$('#rewGo').addEventListener('click', () => { Audio.tick(); $('#reward').hidden = true; refreshTray(); hint('Open the Shop for more crackers', true); });
+
+// ------------------------------------------------------------------ first launch: privacy
+function needConsent(then) {
+  if (ls.get('consented', false)) { then(); return; }
+  $('#consent').hidden = false;
+  $('#consentGo').onclick = () => { Audio.unlock(); Audio.tick(); ls.set('consented', true); $('#consent').hidden = true; then(); };
+}
+
 // ------------------------------------------------------------------ home: map select
 const thumbs = {};
 function renderMaps() {
@@ -665,11 +744,13 @@ function makeThumbs() {
   }
 }
 function showHome() {
+  if (tut) endTutorial(false);
   playing = false; setLighter(false); lighting = null; dropHeld();
   $('#hud').hidden = true; $('#home').hidden = false; $('#rotate').hidden = true; $('#micPill').hidden = true;
   if (Mic.on) { Mic.stop(); $('#btnDiya').setAttribute('aria-pressed', 'false'); }
-  player.move.x = player.move.y = 0; joy = null; joyEl.hidden = true;
+  player.move.x = player.move.y = 0; joy = null; knob.style.transform = '';
   renderMaps();
+  if (ls.get('consented', false)) Store.setBanner(true); // the only place a banner ever shows
 }
 function startGame() {
   Audio.unlock(); Audio.tick(); Haptics.tap(10);
@@ -678,9 +759,9 @@ function startGame() {
   $('#home').hidden = true; $('#hud').hidden = false; playing = true;
   NATIVE?.setLandscape?.(true);
   resize();
-  Store.setBanner(true);
-  if (!ls.get('played3d', false)) { ls.set('played3d', true); hint('Walk with the left stick · drag right to look · press Place', true); }
-  else hint('Look at the ground and press Place', true);
+  Store.setBanner(false); // no ads while you play
+  if (!ls.get('tutorial', false)) startTutorial();
+  else hint('Press Place to set a cracker down', true);
 }
 $('#btnStart').addEventListener('click', startGame);
 $('#btnMenu').addEventListener('click', () => { Audio.tick(); showHome(); });
@@ -840,6 +921,8 @@ document.querySelectorAll('.sheet-wrap').forEach((w) => {
 /** Android back button: close the top sheet, then go back to the map select; false = leave the app. */
 window.artinBack = () => {
   for (const s of sheets.slice().reverse()) if (!$(s).hidden) { closeSheet(s); return true; }
+  if (!$('#reward').hidden) { $('#rewGo').click(); return true; }
+  if (tut) { endTutorial(false); return true; }
   if (!$('#variantBar').hidden) { $('#variantBar').hidden = true; return true; }
   if (playing) { showHome(); return true; }
   return false;
@@ -863,7 +946,7 @@ function openSettings() {
   $('#optTorch').checked = Torch.active; $('#optAmbient').checked = settings.ambient; $('#optShake').checked = settings.shake;
   $('#optVib').disabled = !Haptics.supported; $('#optMic').value = settings.micSens;
   $('#optBob').checked = settings.bob; $('#optFps').checked = settings.fps; $('#optLook').value = settings.look; $('#optInvert').checked = settings.invert;
-  $('#optShakeLight').checked = settings.shakeLight;
+  $('#optShakeLight').checked = settings.shakeLight; $('#optEasy').checked = settings.easyAim;
   seg('#optQuality', settings.quality, setQuality);
   seg('#optLighter', settings.lighter, (v) => { settings.lighter = v; save(); lighter.setKind(v); });
   $('#torchNote').textContent = NATIVE ? '' : Torch.possible
@@ -891,6 +974,8 @@ $('#optBob').addEventListener('change', (e) => { settings.bob = e.target.checked
 $('#optFps').addEventListener('change', (e) => { settings.fps = e.target.checked; $('#fps').hidden = !settings.fps; save(); });
 $('#optLook').addEventListener('input', (e) => { settings.look = +e.target.value; save(); });
 $('#optInvert').addEventListener('change', (e) => { settings.invert = e.target.checked; save(); });
+$('#optEasy').addEventListener('change', (e) => { settings.easyAim = e.target.checked; save(); });
+$('#btnTutorial').addEventListener('click', () => { if (!playing) startGame(); startTutorial(); });
 $('#optShakeLight').addEventListener('change', (e) => { settings.shakeLight = e.target.checked; save(); });
 $('#optMic').addEventListener('input', (e) => { settings.micSens = +e.target.value; Mic.sensitivity = settings.micSens; save(); });
 
@@ -1038,8 +1123,8 @@ function start() {
   setTimeout(() => {
     splash.classList.add('out');
     setTimeout(() => splash.remove(), 300);
-    showHome();
-  }, 600);
+    needConsent(showHome);
+  }, 1300);
 }
 
 if ('serviceWorker' in navigator && !NATIVE && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

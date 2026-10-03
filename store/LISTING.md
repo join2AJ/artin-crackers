@@ -39,7 +39,8 @@ Everything to paste into Play Console. Character limits are in brackets.
 >
 > ✨ FEATURES
 > • 4 maps: Mohalla Gali, Society, Village Chowk and Green Park, with toran lights, diyas and rangoli
-> • Walk with the joystick, drag to look, and use the Place, Hold and Pick modes
+> • Easy controls: a short tutorial, a joystick to stroll and easy aim, so lighting a cracker is one tap
+> • No ads while you play
 > • Light every fuse yourself with an agarbatti, candle or phuljhadi
 > • Flashlight for dark corners
 > • Kick a football, throw cans and watch blasts send things flying
@@ -72,7 +73,7 @@ Everything to paste into Play Console. Character limits are in brackets.
 ## In-app products (Monetize → Products → In-app products)
 | Product ID | Name | Description | Suggested price |
 |---|---|---|---|
-| `remove_ads` | Remove ads | No banner ads, ever. Rewarded videos stay optional. | ₹59 |
+| `remove_ads` | Remove ads | No banner on the menu, ever. Rewarded videos stay optional. | ₹59 |
 | `all_crackers` | All crackers | Every premium cracker unlocked forever, including future ones. | ₹79 |
 | `festival_pack` | Festival Pack | All crackers and no ads. Best value. | ₹119 |
 

@@ -28,7 +28,7 @@ export class Player {
     if (k.has('arrowright')) this.yaw -= dt * 2;
     const m = Math.hypot(mx, my);
     if (m > 1) { mx /= m; my /= m; }
-    const speed = (this.run || k.has('shift') ? 5.5 : 3.3);
+    const speed = k.has('shift') ? 4.5 : 2.6; // an easy stroll: nothing in the game needs running
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     // forward is -z in camera space
     const tx = (mx * cos - my * sin) * speed, tz = (-mx * sin - my * cos) * speed;
@@ -68,9 +68,14 @@ export class Lighter {
   build() {
     this.g.clear();
     const add = (geom, col, x, y, z, e) => { const m = new THREE.Mesh(flat(geom), e ? glow(col) : toon(col)); m.position.set(x, y, z); this.g.add(m); return m; };
-    // a cartoon hand holding it
-    add(new THREE.BoxGeometry(0.045, 0.06, 0.045), '#c98b5a', 0, -0.03, 0.02);
-    add(new THREE.BoxGeometry(0.035, 0.02, 0.04), '#b97a4a', 0.012, 0.005, 0.02);
+    // a blocky cartoon fist around the stick, with a kurta sleeve
+    const skin = '#c98b5a', skin2 = '#b07548';
+    add(new THREE.BoxGeometry(0.04, 0.055, 0.035), skin, 0.012, -0.025, 0.02); // palm
+    for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(0.014, 0.012, 0.016), i % 2 ? skin : skin2, -0.012, -0.004 - i * 0.0135, 0.004); // curled fingers
+    add(new THREE.BoxGeometry(0.012, 0.03, 0.014), skin2, -0.004, 0.012, 0.012).rotation.z = 0.5; // thumb
+    const wrist = add(new THREE.BoxGeometry(0.036, 0.05, 0.032), skin, 0.02, -0.07, 0.03); wrist.rotation.z = -0.25;
+    const sleeve = add(new THREE.CylinderGeometry(0.03, 0.036, 0.22, 7), '#e8762a', 0.05, -0.18, 0.05); sleeve.rotation.z = -0.35;
+    const cuff = add(new THREE.CylinderGeometry(0.031, 0.031, 0.02, 7), '#ffd23f', 0.032, -0.085, 0.04); cuff.rotation.z = -0.35;
     if (this.kind === 'candle') {
       add(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 8), '#fff4e0', 0, 0.06, 0);
       this.flame = add(new THREE.ConeGeometry(0.012, 0.04, 6), '#ffcf5a', 0, 0.165, 0, true);
