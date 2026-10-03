@@ -47,19 +47,8 @@ function aerial(S, at, p, { far = false } = {}) {
 export const CRACKERS = [
   {
     id: 'anar', name: 'Anar', hi: 'अनार', blurb: 'Flower-pot fountain of golden sparks', kind: 'anar', feel: 0.45, free: true,
-    plan(r) {
-      const fuse = r.range(1, 1.5), burn = r.range(6.5, 8.5);
-      return { fuse, burn, end: fuse + burn, curve: burnCurve(r, burn, { rise: 0.6, fall: 1.4, wobble: 0.22 }), tail: 2 };
-    },
-    sound(S, p) {
-      S.fuse(0.02, p.fuse, 0.14);
-      const t = p.fuse, c = p.curve;
-      S.chain(S.noise(t, 0.2), S.filt('bandpass', 2600), S.env(t, 0.35, 0.002, 0.15), S.out);
-      S.hiss(t, p.burn, c, 0.42, S.out, { f: 2600, q: 0.55 });
-      S.hiss(t, p.burn, c, 0.32, S.out, { type: 'lowpass', f: 520, q: 0.4, rate: 0.7 });
-      S.hiss(t, p.burn, c, 0.12, S.out, { type: 'highpass', f: 7000 });
-      S.crackle(t, p.burn, 38, 0.28, S.out, { f: 3600, curve: (k) => sample(c, 1, k) });
-    },
+    plan(r) { return anarPlan(r); },
+    sound(S, p) { anarSound(S, p); },
   },
   {
     id: 'chakri', name: 'Chakri', hi: 'चकरी', blurb: 'Ground spinner that whirls a ring of fire', kind: 'chakri', feel: 0.45, free: true,
@@ -123,7 +112,42 @@ export const CRACKERS = [
       S.hiss(t, p.burn, p.curve, 0.06, S.out, { type: 'highpass', f: 5000 });
     },
   },
+  {
+    id: 'bijli', name: 'Bijli', hi: 'बिजली', blurb: 'Little red cracker with a sharp crack', kind: 'bomb', feel: 0.9, free: true,
+    plan(r) { const fuse = r.range(1.2, 1.7); return { fuse, bang: fuse, size: r.range(0.5, 0.6), end: fuse + 0.3, tail: 2.2, colour: 'red', tube: true }; },
+    sound(S, p) { S.fuse(0.02, p.fuse, 0.12); S.bang(p.bang, p.size); },
+  },
+  {
+    id: 'saanp', name: 'Saanp Goli', hi: 'साँप गोली', blurb: 'Snake tablet: watch the ash snake grow', kind: 'snake', feel: 0, free: true,
+    plan(r) {
+      const fuse = 0.5, burn = r.range(7, 9);
+      return { fuse, burn, end: fuse + burn, tail: 1, seed: Math.floor(r() * 1e9), curve: burnCurve(r, burn, { rise: 0.5, fall: 1, wobble: 0.3, swell: false }) };
+    },
+    sound(S, p) {
+      S.chain(S.noise(0.02, 0.3), S.filt('bandpass', 3000, 0.7), S.env(0.02, 0.15, 0.03, 0.25), S.out);
+      S.hiss(p.fuse, p.burn, p.curve, 0.07, S.out, { f: 2200, q: 0.8 });
+      S.crackle(p.fuse, p.burn, 10, 0.05, S.out, { f: 2500 });
+    },
+  },
+  {
+    id: 'pencil', name: 'Pencil', hi: 'पेंसिल', blurb: 'Colour pencil that burns with a red, green or pink flame', kind: 'phuljhadi', feel: 0.12, free: true,
+    plan(r) {
+      const burn = r.range(9, 11);
+      return { fuse: 0.3, burn, end: 0.3 + burn, tail: 0.6, colour: r.pick(['#ff3b3b', '#3bff6a', '#ff4fd8']), pencil: true, curve: burnCurve(r, burn, { rise: 0.3, fall: 0.6, wobble: 0.08, swell: false }) };
+    },
+    sound(S, p) {
+      S.chain(S.noise(0.02, 0.35), S.filt('bandpass', 2400, 0.7), S.env(0.02, 0.25, 0.04, 0.3), S.out);
+      S.hiss(p.fuse, p.burn, p.curve, 0.16, S.out, { f: 1800, q: 0.5 });
+      S.hiss(p.fuse, p.burn, p.curve, 0.08, S.out, { type: 'highpass', f: 4500 });
+      S.crackle(p.fuse, p.burn, 20, 0.08, S.out, { f: 3500, curve: (k) => sample(p.curve, 1, k) });
+    },
+  },
   // ---- premium -------------------------------------------------------------
+  {
+    id: 'rainbow', name: 'Rainbow', hi: 'रंगीन अनार', blurb: 'Rainbow anar: a fountain that changes colour', kind: 'anar', feel: 0.45, free: false,
+    plan(r) { return { ...anarPlan(r), colours: ['#ff4b4b', '#ffd27a', '#53ff8f', '#5aa9ff', '#c77dff'] }; },
+    sound(S, p) { anarSound(S, p); },
+  },
   {
     id: 'hazaar', name: '1000-wala', hi: 'हज़ार वाली', blurb: 'The legendary 1000-cracker ladi', kind: 'ladi', feel: 0.9, free: false,
     plan(r) { return ladiPlan(r, 1000, 0.018, 0.05); },
@@ -170,6 +194,20 @@ export const DISTANT = {
   sound(S, p) { aerial(S, 0.05, p, { far: true }); },
 };
 
+function anarPlan(r) {
+  const fuse = r.range(1, 1.5), burn = r.range(6.5, 8.5);
+  return { fuse, burn, end: fuse + burn, curve: burnCurve(r, burn, { rise: 0.6, fall: 1.4, wobble: 0.22 }), tail: 2 };
+}
+function anarSound(S, p) {
+  S.fuse(0.02, p.fuse, 0.14);
+  const t = p.fuse, c = p.curve;
+  S.chain(S.noise(t, 0.2), S.filt('bandpass', 2600), S.env(t, 0.35, 0.002, 0.15), S.out);
+  S.hiss(t, p.burn, c, 0.42, S.out, { f: 2600, q: 0.55 });
+  S.hiss(t, p.burn, c, 0.32, S.out, { type: 'lowpass', f: 520, q: 0.4, rate: 0.7 });
+  S.hiss(t, p.burn, c, 0.12, S.out, { type: 'highpass', f: 7000 });
+  S.crackle(t, p.burn, 38, 0.28, S.out, { f: 3600, curve: (k) => sample(c, 1, k) });
+}
+
 function ladiPlan(r, n, gapLo, gapHi) {
   const fuse = r.range(0.6, 0.9), pops = [];
   let t = fuse;
@@ -199,6 +237,10 @@ export const ICONS = {
   ladi: '<g fill="#d9303a" stroke="#7a1a20" stroke-width=".6"><rect x="6" y="10" width="5" height="11" rx="1" transform="rotate(-35 8 15)"/><rect x="14" y="16" width="5" height="11" rx="1" transform="rotate(35 16 21)"/><rect x="22" y="22" width="5" height="11" rx="1" transform="rotate(-35 24 27)"/><rect x="30" y="28" width="5" height="11" rx="1" transform="rotate(35 32 33)"/><rect x="38" y="34" width="5" height="11" rx="1" transform="rotate(-35 40 39)"/></g><path d="M4 8 L44 44" stroke="#c49a6c" stroke-width="1.4" fill="none"/>',
   bomb: '<circle cx="23" cy="28" r="14" fill="#b07a45"/><g stroke="#7a5228" stroke-width="1.4" fill="none"><path d="M10 24 q13 6 26 0"/><path d="M10 32 q13 -6 26 0"/><path d="M19 15 q6 13 0 26"/><path d="M27 15 q-6 13 0 26"/></g><path d="M32 17 q5 -6 9 -8" stroke="#c49a6c" stroke-width="2" fill="none"/><circle cx="41" cy="8" r="3" fill="#ffd27a"/>',
   phuljhadi: '<path d="M10 44 L34 14" stroke="#6b6f78" stroke-width="2.4" stroke-linecap="round"/><path d="M10 44 L18 34" stroke="#8a5a2b" stroke-width="3.2" stroke-linecap="round"/><g stroke="#fff3c4" stroke-width="1.3" stroke-linecap="round"><path d="M34 14 l6 -8"/><path d="M34 14 l9 0"/><path d="M34 14 l-1 -10"/><path d="M34 14 l8 6"/><path d="M34 14 l-7 -5"/><path d="M40 6 l3 1"/><path d="M43 14 l2 -3"/></g><circle cx="34" cy="14" r="2.6" fill="#fff"/>',
+  bijli: '<rect x="18" y="16" width="12" height="26" rx="2" fill="#d9303a"/><rect x="18" y="24" width="12" height="4" fill="#ffcf4a"/><path d="M24 16 q2 -6 7 -9" stroke="#c49a6c" stroke-width="2" fill="none"/><circle cx="31" cy="7" r="3" fill="#ffd27a"/><path d="M22 34 l4 -6 h-3 l3 -5" stroke="#fff3c9" stroke-width="1.4" fill="none"/>',
+  saanp: '<ellipse cx="14" cy="42" rx="7" ry="2.6" fill="#111"/><path d="M14 40 C 10 30, 26 30, 22 22 S 34 12, 36 6" stroke="#3a332d" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M14 40 C 10 30, 26 30, 22 22 S 34 12, 36 6" stroke="#7a6e62" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-dasharray="2 3"/><circle cx="36" cy="6" r="3" fill="#b8ff6b"/>',
+  pencil: '<path d="M10 44 L32 14" stroke="#e8e0d0" stroke-width="3" stroke-linecap="round"/><path d="M10 44 L16 36" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><path d="M24 25 L32 14" stroke="#c8323c" stroke-width="3.6" stroke-linecap="round"/><circle cx="33" cy="12" r="6" fill="#ff3b3b" opacity=".45"/><circle cx="33" cy="12" r="3" fill="#ffe0e0"/>',
+  rainbow: '<path d="M16 42 L24 12 L32 42 Z" fill="#5a2d8a"/><path d="M19.5 29 H28.5 L29.6 33 H18.4 Z" fill="#53ff8f"/><path d="M14 42 H34 V45 H14 Z" fill="#3a1a5a"/><g stroke-width="1.8" stroke-linecap="round"><path d="M24 10 V3" stroke="#ffd27a"/><path d="M22 10 L17 4" stroke="#ff4b4b"/><path d="M26 10 L31 4" stroke="#53ff8f"/><path d="M21 11 L13 8" stroke="#c77dff"/><path d="M27 11 L35 8" stroke="#5aa9ff"/></g>',
   hazaar: '<g fill="#d9303a"><rect x="5" y="6" width="3" height="7" rx="1"/><rect x="11" y="10" width="3" height="7" rx="1"/><rect x="17" y="14" width="3" height="7" rx="1"/><rect x="23" y="18" width="3" height="7" rx="1"/><rect x="29" y="22" width="3" height="7" rx="1"/><rect x="35" y="26" width="3" height="7" rx="1"/><rect x="41" y="30" width="3" height="7" rx="1"/><rect x="5" y="22" width="3" height="7" rx="1"/><rect x="11" y="26" width="3" height="7" rx="1"/><rect x="17" y="30" width="3" height="7" rx="1"/><rect x="23" y="34" width="3" height="7" rx="1"/></g><text x="24" y="46" text-anchor="middle" font-size="9" font-family="Share Tech Mono, monospace" fill="#ffd27a">1000</text>',
   skyshot: '<rect x="9" y="22" width="30" height="22" fill="#5a2d8a"/><path d="M9 22 h30 l-4 -4 h-22 Z" fill="#7b46b3"/><g fill="#1b1030"><circle cx="16" cy="21" r="2"/><circle cx="24" cy="21" r="2"/><circle cx="32" cy="21" r="2"/></g><g stroke-linecap="round" stroke-width="1.6"><path d="M16 17 L12 5" stroke="#53ff8f"/><path d="M24 17 V3" stroke="#ffd27a"/><path d="M32 17 L36 5" stroke="#ff4b4b"/></g><path d="M9 32 h30" stroke="#ffcf4a" stroke-width="2"/>',
   atom: '<circle cx="23" cy="28" r="15" fill="#2f8f4e"/><g stroke="#ffcf4a" stroke-width="1.6" fill="none"><ellipse cx="23" cy="28" rx="11" ry="4.5"/><ellipse cx="23" cy="28" rx="11" ry="4.5" transform="rotate(60 23 28)"/><ellipse cx="23" cy="28" rx="11" ry="4.5" transform="rotate(-60 23 28)"/></g><circle cx="23" cy="28" r="2.5" fill="#ff4b4b"/><path d="M33 16 q5 -6 8 -8" stroke="#c49a6c" stroke-width="2" fill="none"/><circle cx="41" cy="8" r="3" fill="#ffd27a"/>',

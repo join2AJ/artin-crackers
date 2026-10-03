@@ -5,6 +5,7 @@
 //   static torch(plan)  flashlight bursts [{ t, ms }]
 
 import { PALETTES, sample } from './crackers.js';
+import { rng } from './synth.js';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pickW = (list) => { let r = Math.random(); for (const [v, w] of list) { if ((r -= w) <= 0) return v; } return list[0][0]; };
@@ -64,7 +65,7 @@ class Anar extends Visual {
       for (let i = this.count(430 * k, dt); i > 0; i--) {
         const a = -Math.PI / 2 + (Math.random() + Math.random() - 1) * 0.3, s = v0 * rnd(0.5, 1);
         st.sparks.add({ x: this.x + rnd(-1.5, 1.5) * u, y: tipY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(0.7, 1.35),
-          colour: pickW([['#ffcf6e', 0.62], ['#fff1c9', 0.25], ['#ff9a3c', 0.13]]), size: rnd(1.2, 2) * u * 0.8, drag: 0.5, grav: g,
+          colour: p.colours && Math.random() < 0.7 ? p.colours[Math.floor((t - p.fuse) / 1.1 + Math.random() * 0.6) % p.colours.length] : pickW([['#ffcf6e', 0.62], ['#fff1c9', 0.25], ['#ff9a3c', 0.13]]), size: rnd(1.2, 2) * u * 0.8, drag: 0.5, grav: g,
           floor: this.y + rnd(-4, 10) * u, bounce: 0.3, split: Math.random() < 0.12 ? 3 : 0, flicker: Math.random() < 0.12 });
       }
       st.scene.lights.push({ x: this.x, y: this.y - 14 * u, r: (40 + 150 * k) * u, colour: 'rgba(255,170,70,1)', a: 0.5 * k });
@@ -77,7 +78,8 @@ class Anar extends Visual {
     c.save(); c.globalAlpha = Math.min(1, (this.p.end + 2 - this.t) / 0.8);
     c.fillStyle = '#5a2a12'; c.beginPath(); c.ellipse(x, y, 13 * u, 3.4 * u, 0, 0, Math.PI * 2); c.fill();
     const g = c.createLinearGradient(x - 11 * u, 0, x + 11 * u, 0);
-    g.addColorStop(0, burnt ? '#3a1a1a' : '#8e1d26'); g.addColorStop(0.45, burnt ? '#5a2b26' : '#d8323d'); g.addColorStop(1, burnt ? '#2a1414' : '#6e141c');
+    const cols = burnt ? ['#3a1a1a', '#5a2b26', '#2a1414'] : this.p.colours ? ['#3d1d63', '#7b46b3', '#2a1046'] : ['#8e1d26', '#d8323d', '#6e141c'];
+    g.addColorStop(0, cols[0]); g.addColorStop(0.45, cols[1]); g.addColorStop(1, cols[2]);
     c.fillStyle = g; c.beginPath(); c.moveTo(x - 11 * u, y); c.lineTo(x - 2.4 * u, y - 30 * u); c.lineTo(x + 2.4 * u, y - 30 * u); c.lineTo(x + 11 * u, y); c.closePath(); c.fill();
     if (!burnt) { c.fillStyle = '#ffcf4a'; c.beginPath(); c.moveTo(x - 7.4 * u, y - 12 * u); c.lineTo(x + 7.4 * u, y - 12 * u); c.lineTo(x + 6.2 * u, y - 16.5 * u); c.lineTo(x - 6.2 * u, y - 16.5 * u); c.fill(); }
     c.fillStyle = '#2a1a10'; c.fillRect(x - 2.4 * u, y - 31 * u, 4.8 * u, 1.6 * u);
@@ -172,21 +174,21 @@ class Rocket extends Visual {
 class Bomb extends Visual {
   constructor(...a) { super(...a); this.banged = false; this.glow = 0; }
   update(dt) {
-    const t = this.t, p = this.p, u = this.u, st = this.st, R = (p.big ? 13 : 10) * u;
+    const t = this.t, p = this.p, u = this.u, st = this.st, R = (p.big ? 13 : p.tube ? 7 : 10) * u;
     if (t < p.bang) {
       const f = 1 - t / p.fuse, a = -0.9 + f * 0.1;
       this.fuseSpark(this.x + R * 0.6 + Math.cos(a) * 14 * u * f, this.y - R * 1.6 + Math.sin(a) * 14 * u * f, dt);
     } else if (!this.banged) {
       this.banged = true;
       const s = p.size, cy = this.y - R;
-      st.flash(this.x, cy, p.big ? 1.15 : 1, p.big ? 900 : 650, '#fff1d6');
-      st.shake(p.big ? 1.6 : 1);
+      st.flash(this.x, cy, p.big ? 1.15 : p.tube ? 0.55 : 1, p.big ? 900 : p.tube ? 380 : 650, '#fff1d6');
+      st.shake(p.big ? 1.6 : p.tube ? 0.35 : 1);
       for (let i = 0; i < 110 * s; i++) {
         const a = rnd(-Math.PI, 0) + rnd(-0.2, 0.2), v = rnd(250, 760) * u * s;
         st.sparks.add({ x: this.x, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.12, 0.4), colour: pickW([['#ffffff', 0.35], ['#ffd27a', 0.4], ['#ff8a3c', 0.25]]), size: 2.2 * u, drag: 3, grav: 400 * u, floor: this.y + 6 * u });
       }
       st.scene.ring(this.x, this.y, 160 * u * s);
-      st.scene.paper(this.x, cy, Math.round(46 * s), p.colour === 'green' ? ['#2f8f4e', '#ffcf4a', '#d9303a'] : ['#b07a45', '#8a5a2b', '#d9303a']);
+      st.scene.paper(this.x, cy, Math.round(46 * s), p.colour === 'green' ? ['#2f8f4e', '#ffcf4a', '#d9303a'] : p.tube ? ['#d9303a', '#b8242c', '#ffcf4a'] : ['#b07a45', '#8a5a2b', '#d9303a']);
       st.scene.puff(this.x, cy, 12, 1.3 * s);
       st.scene.burn(this.x, this.y, 30 * u * s);
       this.glow = 1;
@@ -196,8 +198,19 @@ class Bomb extends Visual {
   }
   draw(c) {
     if (this.banged) return;
-    const u = this.u, p = this.p, R = (p.big ? 13 : 10) * u, x = this.x, y = this.y - R, f = Math.max(0, 1 - this.t / p.fuse);
+    const u = this.u, p = this.p, R = (p.big ? 13 : p.tube ? 7 : 10) * u, x = this.x, y = this.y - R, f = Math.max(0, 1 - this.t / p.fuse);
     c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.ellipse(x, this.y + 1.5 * u, R * 1.1, R * 0.35, 0, 0, Math.PI * 2); c.fill();
+    if (p.tube) { // bijli: a small red paper tube standing upright
+      const tw = 4.5 * u, th = 15 * u, top = this.y - th;
+      const tg = c.createLinearGradient(x - tw, 0, x + tw, 0);
+      tg.addColorStop(0, '#8e1d26'); tg.addColorStop(0.45, '#e2404a'); tg.addColorStop(1, '#6e141c');
+      c.fillStyle = tg; c.fillRect(x - tw, top, tw * 2, th);
+      c.fillStyle = '#ffcf4a'; c.fillRect(x - tw, top + th * 0.35, tw * 2, 2.2 * u);
+      c.strokeStyle = '#c49a6c'; c.lineWidth = 1.2 * u;
+      // fuse ends where update() draws its spark
+      c.beginPath(); c.moveTo(x, top); c.lineTo(x + R * 0.6 + Math.cos(-0.9) * 14 * u * f, this.y - R * 1.6 + Math.sin(-0.9) * 14 * u * f); c.stroke();
+      return;
+    }
     const g = c.createRadialGradient(x - R * 0.35, y - R * 0.35, R * 0.1, x, y, R);
     if (p.colour === 'green') { g.addColorStop(0, '#5fd38a'); g.addColorStop(1, '#1d5a33'); } else { g.addColorStop(0, '#d9a066'); g.addColorStop(1, '#6e4520'); }
     c.fillStyle = g; c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fill();
@@ -210,7 +223,7 @@ class Bomb extends Visual {
     const a = -0.9;
     c.beginPath(); c.moveTo(x + R * 0.6, y - R * 0.6); c.lineTo(x + R * 0.6 + Math.cos(a) * 14 * u * f, y - R * 0.6 + Math.sin(a) * 14 * u * f); c.stroke();
   }
-  static torch(p) { return p.big ? [{ t: p.bang, ms: 420 }] : [{ t: p.bang, ms: 260 }]; }
+  static torch(p) { return [{ t: p.bang, ms: p.big ? 420 : p.tube ? 150 : 260 }]; }
 }
 
 // ------------------------------------------------------------------ LADI
@@ -310,7 +323,11 @@ class Phuljhadi extends Visual {
     const k = t < p.fuse ? 0.25 : sample(p.curve, p.burn, t - p.fuse);
     if (t < p.end && k > 0.01) {
       this.trail.push({ x: tp.x, y: tp.y, t: now });
-      for (let i = this.count(260 * k, dt); i > 0; i--) {
+      if (p.pencil) { // a colour pencil: a big coloured flame with only a few sparks
+        st.scene.lights.push({ x: tp.x, y: tp.y, r: 150 * u, colour: p.colour, a: 0.5 * k });
+        st.sparks.add({ x: tp.x + rnd(-2, 2) * u, y: tp.y, vx: rnd(-20, 20) * u, vy: rnd(-90, -30) * u, life: rnd(0.15, 0.35), colour: p.colour, size: 5 * u, drag: 2, grav: -40 * u, dot: true, alpha: 0.6 });
+      }
+      for (let i = this.count((p.pencil ? 40 : 260) * k, dt); i > 0; i--) {
         const a = Math.random() * Math.PI * 2, s = rnd(70, 270) * u;
         st.sparks.add({ x: tp.x, y: tp.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(0.08, 0.32), colour: Math.random() < 0.6 ? '#fff6e0' : '#ffd27a',
           size: 1.1 * u, drag: 2.2, grav: 140 * u, split: Math.random() < 0.3 ? 3 : 0, flicker: Math.random() < 0.2 });
@@ -327,7 +344,7 @@ class Phuljhadi extends Visual {
     c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
     // one path per age band, so joints don't double up into beads
     for (let pass = 0; pass < 2; pass++) {
-      c.lineWidth = (pass ? 1.4 : 4.5) * u; c.strokeStyle = pass ? '#fff8ea' : '#ffb347';
+      c.lineWidth = (pass ? 1.4 : 4.5) * u; c.strokeStyle = pass ? '#fff8ea' : p.colour || '#ffb347';
       let i = 1;
       while (i < this.trail.length) {
         const band = Math.floor(((now - this.trail[i].t) / 2600) * 12);
@@ -347,6 +364,7 @@ class Phuljhadi extends Visual {
     c.strokeStyle = '#4b4741'; c.lineWidth = 2.8 * u; c.beginPath(); c.moveTo(hx + ca * L * 0.28, hy + sa * L * 0.28); c.lineTo(tp.x, tp.y); c.stroke();
     if (t < p.end) {
       c.globalCompositeOperation = 'lighter'; c.fillStyle = '#fffaf0';
+      if (p.pencil) { c.globalAlpha = 0.7; c.fillStyle = p.colour; c.beginPath(); c.arc(tp.x, tp.y, 7 * u, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; c.fillStyle = '#fffaf0'; }
       c.beginPath(); c.arc(tp.x, tp.y, 2.6 * u, 0, Math.PI * 2); c.fill();
     } else if (t < p.end + 1) {
       c.fillStyle = `rgba(255,90,40,${1 - (t - p.end)})`; c.beginPath(); c.arc(tp.x, tp.y, 1.8 * u, 0, Math.PI * 2); c.fill();
@@ -396,4 +414,53 @@ class SkyShot extends Visual {
   static torch(p) { return p.shots.map((s) => ({ t: s.burst, ms: 120 })); }
 }
 
-export const VISUALS = { anar: Anar, chakri: Chakri, rocket: Rocket, bomb: Bomb, ladi: Ladi, phuljhadi: Phuljhadi, skyshot: SkyShot };
+// ------------------------------------------------------------------ SAANP GOLI (snake tablet)
+class Snake extends Visual {
+  constructor(...a) {
+    super(...a);
+    const r = rng(this.p.seed), u = this.u, n = 70;
+    let x = this.x, y = this.y - 2 * u, ang = -Math.PI / 2 + (r() - 0.5) * 0.9;
+    this.pts = [{ x, y }];
+    for (let i = 0; i < n; i++) {
+      ang += (r() - 0.5) * 0.7 + Math.sin(i / 7) * 0.18;
+      ang = Math.max(-Math.PI + 0.35, Math.min(-0.35, ang));
+      x += Math.cos(ang) * 2.2 * u; y += Math.sin(ang) * 1.6 * u;
+      this.pts.push({ x, y });
+    }
+    this.n = 1;
+  }
+  update(dt) {
+    const t = this.t, p = this.p, u = this.u, st = this.st;
+    if (t < p.fuse) { this.fuseSpark(this.x, this.y - 2 * u, dt); return; }
+    const f = Math.min(1, (t - p.fuse) / p.burn);
+    this.n = Math.max(1, Math.floor(Math.pow(f, 0.8) * (this.pts.length - 1)));
+    const head = this.pts[this.n];
+    if (t < p.end) {
+      if (Math.random() < dt * 3) st.scene.puff(head.x, head.y, 1, 0.45);
+      st.scene.lights.push({ x: head.x, y: head.y, r: 26 * u, colour: 'rgba(190,255,120,1)', a: 0.3 });
+    }
+    if (t > p.end + 3) this.done = true;
+  }
+  draw(c) {
+    const u = this.u, t = this.t, p = this.p;
+    c.save(); c.globalAlpha = Math.min(1, (p.end + 3 - t) / 1);
+    c.fillStyle = '#0d0c0b'; c.beginPath(); c.ellipse(this.x, this.y, 6 * u, 2.2 * u, 0, 0, Math.PI * 2); c.fill();
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    const pts = this.pts, n = this.n;
+    for (let i = 1; i <= n; i++) { // thick at the base, thinner towards the head
+      const k = i / Math.max(1, n);
+      c.strokeStyle = '#2f2924'; c.lineWidth = (7 - 3.5 * k) * u;
+      c.beginPath(); c.moveTo(pts[i - 1].x, pts[i - 1].y); c.lineTo(pts[i].x, pts[i].y); c.stroke();
+    }
+    c.strokeStyle = 'rgba(150,135,120,0.55)'; c.lineWidth = 1.1 * u; c.setLineDash([2 * u, 3 * u]);
+    c.beginPath(); c.moveTo(pts[0].x - u, pts[0].y); for (let i = 1; i <= n; i++) c.lineTo(pts[i].x - u, pts[i].y); c.stroke();
+    c.setLineDash([]);
+    if (t > p.fuse && t < p.end) {
+      const h = pts[n]; c.globalCompositeOperation = 'lighter';
+      c.fillStyle = 'rgba(200,255,130,0.8)'; c.beginPath(); c.arc(h.x, h.y, 2.4 * u, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
+}
+
+export const VISUALS = { anar: Anar, chakri: Chakri, rocket: Rocket, bomb: Bomb, ladi: Ladi, phuljhadi: Phuljhadi, skyshot: SkyShot, snake: Snake };

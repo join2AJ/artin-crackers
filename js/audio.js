@@ -5,7 +5,7 @@ import { render, rng } from './synth.js';
 const MAX_VARIANTS = { hazaar: 1, skyshot: 2 };
 
 export const Audio = {
-  ctx: null, master: null, volume: 0.9,
+  ctx: null, master: null, volume: 0.9, muted: false,
   cache: new Map(), // id -> [{ plan, buffer, envelope }]
   rendering: new Map(), // id -> Promise
 
@@ -16,13 +16,28 @@ export const Audio = {
       this.ctx = new AC({ latencyHint: 'interactive' });
       const comp = this.ctx.createDynamicsCompressor();
       comp.threshold.value = -6; comp.knee.value = 4; comp.ratio.value = 6; comp.attack.value = 0.001; comp.release.value = 0.2;
-      this.master = this.ctx.createGain(); this.master.gain.value = this.volume;
+      this.master = this.ctx.createGain(); this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(comp); comp.connect(this.ctx.destination);
+      this.out = this.ctx.createAnalyser(); this.out.fftSize = 512; comp.connect(this.out);
+      this.outBuf = new Float32Array(this.out.fftSize);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     return this.ctx;
   },
-  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; },
+  setVolume(v) { this.volume = v; if (this.master && !this.muted) this.master.gain.value = v; },
+  /** Instant silence (fades in 60 ms so it doesn't click). */
+  setMuted(m) {
+    this.muted = m;
+    if (this.master) this.master.gain.setTargetAtTime(m ? 0 : this.volume, this.ctx.currentTime, 0.02);
+  },
+  /** How loud the app itself is right now (RMS of the output), so the mic can ignore our own bangs. */
+  outLevel() {
+    if (!this.out || this.muted) return 0;
+    this.out.getFloatTimeDomainData(this.outBuf);
+    let sum = 0;
+    for (let i = 0; i < this.outBuf.length; i++) sum += this.outBuf[i] * this.outBuf[i];
+    return Math.sqrt(sum / this.outBuf.length);
+  },
   /** Milliseconds between "start now" and the sound reaching the speaker. */
   latencyMs() { const c = this.ctx; return c ? ((c.outputLatency || 0) + (c.baseLatency || 0)) * 1000 : 0; },
 

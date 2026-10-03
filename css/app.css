@@ -189,6 +189,34 @@ a { color: var(--acc); }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+
+/* ============================================================ QUICK-ACTION RAIL */
+.rail {
+  position: fixed; z-index: 10; right: calc(10px + var(--safe-r)); top: calc(70px + var(--safe-t));
+  display: grid; gap: 8px;
+}
+.rail .icon-btn { width: 40px; height: 40px; background: rgba(19, 12, 32, 0.72); }
+.rail .icon-btn svg { width: 19px; height: 19px; }
+#btnMute[aria-pressed='true'] { background: var(--pink); color: #fff; box-shadow: 0 0 18px rgba(255, 61, 127, 0.5); }
+#btnShow[aria-pressed='true'] { animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 26px rgba(255, 182, 39, 0.8); } }
+.mic-pill.hot { box-shadow: inset 0 0 0 1px var(--acc), 0 0 18px rgba(255, 182, 39, 0.35); color: var(--text); }
+
+/* ============================================================ THEMES */
+.themes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.theme {
+  --cut: 8px; border: 0; padding: 0 0 7px; background: #150d22; box-shadow: inset 0 0 0 1px var(--line);
+  display: grid; gap: 5px; text-align: center; font-size: 12px; color: var(--muted);
+}
+.theme i { display: block; height: 46px; }
+.theme b { font-family: var(--f-brand); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); font-size: 11px; }
+.theme[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--acc); }
+
+/* ============================================================ GREETING CARD */
+.card-preview { display: block; width: min(100%, 300px); height: auto; aspect-ratio: 4 / 5; margin: 0 auto 10px; box-shadow: 0 0 0 1px var(--line); background: #05030b; }
+.card-name input { flex: 1; min-width: 0; background: #0d0817; border: 1px solid var(--line); color: var(--text); font: inherit; padding: 8px 10px; user-select: text; -webkit-user-select: text; }
+.card-name input:focus { outline: none; border-color: var(--acc); }
+
 /* ============================================================ SPLASH */
 .splash {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
@@ -199,9 +227,12 @@ a { color: var(--acc); }
 .splash-mark { width: 104px; height: 104px; margin-bottom: 8px; overflow: visible; filter: drop-shadow(0 0 22px rgba(255, 182, 39, 0.45)); }
 .splash .m-shield { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 0.3s ease-out forwards; }
 .splash .m-a { transform-origin: 32px 40px; transform: scale(0.4) translateY(10px); opacity: 0; animation: pop 0.22s 0.12s cubic-bezier(0.2, 1.6, 0.4, 1) forwards; }
-.splash .m-bar { opacity: 0; animation: fadeIn 0.1s 0.28s forwards; }
-.splash .m-spark path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 0.2s 0.3s ease-out forwards; }
-.splash .m-drops { opacity: 0; transform-origin: 32px 19px; transform: scale(0.5); animation: drops 0.25s 0.38s ease-out forwards; }
+.splash .m-bowl { opacity: 0; animation: fadeIn 0.12s 0.26s forwards; }
+.splash .m-flame { transform-origin: 32px 39px; transform: scale(0); animation: flame 0.3s 0.3s ease-out forwards; }
+.splash .m-stars path { opacity: 0; animation: twinkle 0.3s ease-out forwards; }
+.splash .m-stars path:nth-child(1) { animation-delay: 0.38s; }
+.splash .m-stars path:nth-child(2) { animation-delay: 0.44s; }
+.splash .m-stars path:nth-child(3) { animation-delay: 0.5s; }
 .splash-game { font-family: var(--f-brand); font-weight: 700; font-size: 34px; letter-spacing: 0.32em; margin-right: -0.32em; opacity: 0; animation: rise 0.28s 0.18s ease-out forwards; }
 .splash-hi { font-family: var(--f-hi); color: var(--acc); font-size: 18px; opacity: 0; animation: rise 0.28s 0.26s ease-out forwards; }
 .splash-studio { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-top: 6px; opacity: 0; animation: rise 0.28s 0.32s ease-out forwards; }
@@ -209,7 +240,8 @@ a { color: var(--acc); }
 
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes pop { to { transform: none; opacity: 1; } }
-@keyframes drops { to { transform: none; opacity: 1; } }
+@keyframes flame { 0% { transform: scale(0); } 60% { transform: scale(1.25, 1.15); } 100% { transform: none; } }
+@keyframes twinkle { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0.9; } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
@@ -229,6 +261,11 @@ a { color: var(--acc); }
   .cr svg.art { width: 32px; height: 32px; }
   .cr .hi { display: none; }
   .mic-pill { top: calc(50px + var(--safe-t)); }
+  .rail { top: calc(50px + var(--safe-t)); gap: 5px; }
+  .rail .icon-btn { width: 34px; height: 34px; }
+  .rail .icon-btn svg { width: 16px; height: 16px; }
+  .themes .theme i { height: 30px; }
+  .card-preview { width: min(100%, 200px); }
   .sheet { --cut: 12px; width: min(620px, 100%); padding: 14px 16px 16px; }
   .welcome h2 { font-size: 24px; }
   .welcome .feat { grid-template-columns: 1fr 1fr 1fr; }

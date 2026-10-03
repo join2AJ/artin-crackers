@@ -1,6 +1,6 @@
 # Patakha: Diwali Crackers Simulator
 
-**by ARTIN Studios.** Burst anar, chakri, rockets, ladi and sutli bombs on a rooftop on Diwali night, with sound made for each cracker, vibration that follows every blast and flashlight bursts. Draw with a phuljhadi, and blow out the diyas through your mic. All the dhamaka, none of the smoke.
+**by ARTIN Studios.** Burst anar, chakri, rockets, ladi and sutli bombs on a rooftop on Diwali night, with sound made for each cracker, vibration that follows every blast and flashlight bursts. Draw with a phuljhadi, blow out the diyas through your mic, pick a background (rooftop, village, river ghat or open sky), run an auto show and share a Diwali greeting card. All the dhamaka, none of the smoke.
 
 - **Web:** static site, no build step, offline PWA (Netlify serves the repo root).
 - **Android:** native WebView wrapper (coming next), app ID `com.artinstudios.crackers`.
@@ -20,7 +20,7 @@ The microphone and the flashlight in the browser need HTTPS (or localhost).
 | `js/synth.js` | Offline Web Audio synthesis toolkit and outdoor reverb |
 | `js/audio.js` | Realtime playback and the variant cache |
 | `js/visuals.js` | How each cracker looks and moves, plus flashlight timing |
-| `js/scene.js` | Night sky, rooftops, diyas, toran, rangoli, debris |
+| `js/scene.js` | Background themes, diyas, toran, rangoli, debris |
 | `js/fx.js` | Haptics mixer, flashlight, spark particles |
 | `js/mic.js` | Blow detection for the diyas |
 | `js/store.js` | Free/premium, rewarded unlocks, purchases (Android) |

@@ -34,7 +34,8 @@ Everything to paste into Play Console. Character limits are in brackets.
 > • Ladi: the 100-wala string, rat-a-tat-tat!
 > • Sutli Bomb: twine-wrapped thunder (cover your ears!)
 > • Phuljhadi: hold the sparkler and draw with light
-> • Premium: 1000-wala ladi, 12-shot Sky Shot and the Atom Bomb
+> • Bijli, Saanp Goli (snake tablet) and Colour Pencil
+> • Premium: Rainbow Anar, 1000-wala ladi, 12-shot Sky Shot and the Atom Bomb
 >
 > ✨ FEATURES
 > • Realistic sound for every cracker, with echoes off the houses around you
@@ -43,7 +44,10 @@ Everything to paste into Play Console. Character limits are in brackets.
 > • Blow on your phone to put out the diyas, then tap to light them again
 > • Draw with your phuljhadi like a long-exposure photo
 > • Neighbourhood fireworks bursting over the skyline
-> • Rooftops with diyas, toran lights and a rangoli
+> • Four backgrounds: city rooftop, village, river ghat and open sky
+> • Auto show: sit back for a 45-second fireworks show
+> • Make and share a शुभ दीपावली greeting card from your own fireworks
+> • One-tap mute and clear, for when someone walks in
 > • Works offline
 >
 > 🌱 A GREEN DIWALI

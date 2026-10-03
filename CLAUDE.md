@@ -19,10 +19,10 @@ See `docs/RELEASING.md` for the release and rollback procedure. Update `README.m
 
 ## Working on the code
 - Run: `npx http-server -p 8080 -s -c-1 .` → http://localhost:8080. Add `?storetest` to simulate the Android store and rewarded ads.
-- Desktop shortcuts: keys `1`–`9` pick a cracker, `Space` lights it, `Esc` closes sheets.
+- Desktop shortcuts: keys `1`–`9` pick a cracker, `Space` lights it, `M` mutes, `C` clears, `Esc` closes sheets.
 - `js/crackers.js`: catalogue. Each cracker has a `plan()` (random but seeded timeline) and a `sound()` that synthesises it. Add a cracker here, plus its icon in `ICONS`.
 - `js/synth.js`: offline synthesis toolkit (bang, pops, crackle, hiss, whistle, fuse…) and the outdoor reverb. Sounds render once per variant in an `OfflineAudioContext`; avoid creating thousands of nodes (use `S.grains`/`S.pops`/`S.crackle` for many small sounds).
 - `js/visuals.js`: one class per cracker kind; reads the same plan so visuals, sound, vibration and torch line up. `static torch(plan)` lists flashlight bursts.
-- `js/fx.js`: haptics mixer (sound envelope → vibration), flashlight, spark particles. `js/scene.js`: sky, rooftops, diyas, toran, rangoli, debris. `js/mic.js`: blow detection. `js/store.js`: free/premium, rewarded unlocks, purchases. `js/app.js`: UI and loop.
-- Native bridge names (Android): `window.ArtinNative` (vibration, torch), `window.ArtinStore` (ads and billing; events via `window.artinStoreEvent`), back button calls `window.artinBack()`.
+- `js/fx.js`: haptics mixer (sound envelope → vibration), flashlight, spark particles. `js/scene.js`: background themes (`THEMES`: city, village, ghat, open), diyas, toran, rangoli, debris. `js/mic.js`: blow detection. `js/store.js`: free/premium, rewarded unlocks, purchases. `js/app.js`: UI and loop.
+- Native bridge names (Android): `window.ArtinNative` (vibration, torch, `shareImage(base64Png)` for the greeting card), `window.ArtinStore` (ads and billing; events via `window.artinStoreEvent`), back button calls `window.artinBack()`.
 - Store graphics generator: `dev/store.html` (icon, feature graphic).

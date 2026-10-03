@@ -9,6 +9,22 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-03 · Play build 2
+### Changed
+- **New logo.** The ARTIN "A" is now a lamp: a diya flame glows inside the A, a clay bowl forms its crossbar, and three stars twinkle above. The old spark fountain from the A's tip could be misread, so it is gone. The splash animation, app icon and store graphics are updated to match.
+- **Blowing out the diyas is far more sensitive.** The detector now learns your room's background noise and reacts to any breath clearly above it, instead of needing a loud, fixed level. A light breath now counts and a harder blow puts the diyas out faster. The meter glows while it hears you, and the app's own bangs coming out of the speaker are ignored. A new **Blow sensitivity** slider in Settings defaults to high.
+- The flashlight button moved from the top bar to the new quick-action rail.
+- Service-worker cache bumped to `patakha-v2`.
+### Added
+- **Mute button** in the top bar: instant silence, for example when someone walks in. Vibration and lights keep working. It is remembered, and `M` toggles it on desktop.
+- **Clear button**: stops every cracker, sound, vibration and flashlight burst at once and sweeps away sparks, smoke and debris. `C` on desktop.
+- **Background themes** in Settings: Rooftop (city), Village (huts, coconut palms, a banyan and earth courtyard), River Ghat (temples outlined in lamps, reflections and floating diyas on the water) and Open Sky (hills, the Milky Way and grass). The choice is remembered.
+- **Auto show**: a 45-second fireworks show that lights crackers by itself and ends with a volley of rockets. Tap again to stop.
+- **Diwali greeting card**: makes a 1080×1350 card from the sky you just lit, with "शुभ दीपावली · Happy Diwali" and an optional "with love from" name, then shares it (or saves it where sharing isn't available). The name is only drawn on the image.
+- **Four new crackers:** Bijli (little red cracker with a sharp crack), Saanp Goli (snake tablet with a growing ash snake) and Colour Pencil (red, green or pink flame) are free; Rainbow Anar (a fountain that changes colour) is premium. 13 crackers in total.
+- Quick-action rail on the right: flashlight, clear, auto show, greeting card.
+- Privacy policy: a section on the greeting card.
+
 ## [0.1.0] — 2026-10-02 · Play build 1 · `7e2923f`
 ### Added
 - First version of the Patakha web app (Diwali Crackers Simulator) by ARTIN Studios.

@@ -3,13 +3,13 @@
 import { CRACKERS, byId, ICONS, DISTANT, PALETTES } from './crackers.js';
 import { Audio } from './audio.js';
 import { Haptics, Torch, Sparks, NATIVE } from './fx.js';
-import { Scene } from './scene.js';
+import { Scene, THEMES } from './scene.js';
 import { VISUALS, burst } from './visuals.js';
 import { Mic } from './mic.js';
 import { Store, PRODUCTS, ls, fmtLeft } from './store.js';
 
 const $ = (s) => document.querySelector(s);
-const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar' }, ls.get('settings', {}));
+const settings = Object.assign({ vol: 0.9, vib: true, vibK: 1, torch: false, ambient: true, shake: true, sel: 'anar', muted: false, theme: 'city', micSens: 0.8 }, ls.get('settings', {}));
 const save = () => ls.set('settings', settings);
 if (!byId[settings.sel]) settings.sel = 'anar';
 
@@ -57,10 +57,11 @@ function count() {
   $('#litCount').textContent = tally.tonight;
 }
 
-async function light(def, x, y) {
+let torchTimers = [];
+async function light(def, x, y, { quiet = false } = {}) {
   Audio.unlock();
-  if (Store.locked(def.id)) { openUnlock(def); return null; }
-  if (actives.length >= 7) { toast('Let these finish first'); return null; }
+  if (Store.locked(def.id)) { if (!quiet) openUnlock(def); return null; }
+  if (actives.length >= (quiet ? 9 : 8)) { if (!quiet) toast('Let these finish first'); return null; }
   const pos = def.kind === 'phuljhadi' ? { x, y } : scene.ground(x, y);
   const v = await Audio.variant(def);
   const h = Audio.play(v.buffer, { pan: (pos.x / scene.w - 0.5) * 1.2 });
@@ -69,7 +70,8 @@ async function light(def, x, y) {
   actives.push(vis);
   Haptics.add(v.envelope, def.feel, h.when);
   if (Torch.active) {
-    for (const f of VISUALS[def.kind].torch(v.plan)) setTimeout(() => Torch.flash(f.ms), Math.max(0, h.when - performance.now() + f.t * 1000));
+    for (const f of VISUALS[def.kind].torch(v.plan)) torchTimers.push(setTimeout(() => Torch.flash(f.ms), Math.max(0, h.when - performance.now() + f.t * 1000)));
+    if (torchTimers.length > 400) torchTimers = torchTimers.slice(-200);
   }
   count();
   hint(null);
@@ -130,11 +132,14 @@ let nextAmbient = performance.now() + 4000;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (Mic.on) {
-    const b = Mic.blow();
+    // our own crackers reach the mic through the speaker: discount them
+    const echo = Audio.outLevel(), b = Math.max(0, Mic.blow(dt) - (echo > 0.01 ? echo * 6 : 0));
     scene.wind = scene.wind * 0.6 + b * 0.4;
     $('#micLevel').style.width = Math.round(b * 100) + '%';
-    if (b > 0.3) blowAcc += dt; else blowAcc = Math.max(0, blowAcc - dt);
-    if (blowAcc > 0.25 && now - lastBlow > 140 && scene.blowOne()) { lastBlow = now; Haptics.tap(6); }
+    $('#micPill').classList.toggle('hot', b > 0);
+    // any breath counts; a harder blow puts the diyas out faster
+    if (b > 0) blowAcc += dt * (0.7 + b * 2); else blowAcc = Math.max(0, blowAcc - dt * 2);
+    if (blowAcc > 0.1 && now - lastBlow > 230 - 170 * b && scene.blowOne()) { lastBlow = now; Haptics.tap(6); }
     if (!scene.litCount && !allOutTold) { allOutTold = true; toast('All diyas are out. Tap them to light them again.'); }
     if (scene.litCount) allOutTold = false;
   } else scene.wind *= 0.9;
@@ -159,7 +164,143 @@ async function ambient() {
   const colours = Object.keys(PALETTES).filter((c) => c !== 'saffron');
   const b = { ...v.plan, colour: v.plan.type === 'willow' || v.plan.type === 'crackle' ? 'gold' : colours[Math.floor(Math.random() * colours.length)] };
   burst(st, x, y, b, { scale: 0.36, alpha: 0.5 });
-  setTimeout(() => Audio.play(v.buffer, { pan: (x / scene.w - 0.5) * 1.4, gain: 0.3 }), v.plan.delay * 1000);
+  ambientTimers.push(setTimeout(() => ambientSounds.push(Audio.play(v.buffer, { pan: (x / scene.w - 0.5) * 1.4, gain: 0.3 })), v.plan.delay * 1000));
+  if (ambientSounds.length > 8) ambientSounds.splice(0, 4);
+}
+let ambientTimers = [], ambientSounds = [];
+
+// ------------------------------------------------------------------ mute, clear, auto show
+function setMuted(m) {
+  settings.muted = m; save();
+  Audio.setMuted(m);
+  const b = $('#btnMute');
+  b.setAttribute('aria-pressed', String(m));
+  b.setAttribute('aria-label', m ? 'Sound is off: tap to turn it on' : 'Mute all sound');
+  b.querySelector('use').setAttribute('href', m ? '#i-mute' : '#i-sound');
+}
+$('#btnMute').addEventListener('click', () => { Audio.unlock(); setMuted(!settings.muted); toast(settings.muted ? 'Sound off. Vibration and lights still work.' : 'Sound on'); });
+
+/** Stop everything at once: sounds, vibration, flashlight, sparks, debris and the auto show. */
+function clearAll() {
+  stopShow();
+  for (const v of actives) v.sound?.stop(0.06);
+  actives = []; grabs.clear();
+  torchTimers.forEach(clearTimeout); torchTimers = [];
+  ambientTimers.forEach(clearTimeout); ambientTimers = [];
+  ambientSounds.forEach((h) => h.stop(0.06)); ambientSounds = [];
+  nextAmbient = performance.now() + 8000;
+  Haptics.stop(); sparks.clear(); scene.clearMarks();
+  flashesEl.innerHTML = ''; liveFlashes = 0;
+}
+$('#btnClear').addEventListener('click', () => { clearAll(); toast('All clear'); });
+
+let show = null;
+const SHOW_WEIGHT = { rocket: 4, skyshot: 2, anar: 2, chakri: 2, ladi: 1, bomb: 1 };
+function startShow() {
+  Audio.unlock();
+  const pool = CRACKERS.filter((c) => SHOW_WEIGHT[c.kind] && !Store.locked(c.id));
+  const total = pool.reduce((a, c) => a + SHOW_WEIGHT[c.kind], 0);
+  const pick = () => { let r = Math.random() * total; for (const c of pool) if ((r -= SHOW_WEIGHT[c.kind]) <= 0) return c; return pool[0]; };
+  const t0 = performance.now(), DUR = 45000;
+  show = { timers: [] };
+  const spot = () => [scene.w * (0.12 + Math.random() * 0.76), scene.placeTop + Math.random() * (scene.placeBottom - scene.placeTop)];
+  const step = () => {
+    if (!show) return;
+    if (performance.now() - t0 > DUR) { // finale: a volley of rockets
+      const rocket = byId.rocket;
+      for (let i = 0; i < 5; i++) show.timers.push(setTimeout(() => light(rocket, scene.w * (0.15 + i * 0.17), scene.placeBottom - 4, { quiet: true }), i * 260));
+      show.timers.push(setTimeout(() => { stopShow(); toast('Show over. Shubh Deepavali!'); }, 6000));
+      return;
+    }
+    light(pick(), ...spot(), { quiet: true });
+    show.timers.push(setTimeout(step, 1100 + Math.random() * 1700));
+  };
+  step();
+  $('#btnShow').setAttribute('aria-pressed', 'true');
+  toast('Auto show: sit back for 45 seconds');
+}
+function stopShow() {
+  if (!show) return;
+  show.timers.forEach(clearTimeout); show = null;
+  $('#btnShow').setAttribute('aria-pressed', 'false');
+}
+$('#btnShow').addEventListener('click', () => { if (show) { stopShow(); toast('Show stopped'); } else startShow(); });
+
+// ------------------------------------------------------------------ greeting card
+const snap = document.createElement('canvas');
+function takeSnapshot() {
+  const W = 1080, H = 1350; snap.width = W; snap.height = H;
+  const c = snap.getContext('2d'), sw = scene.sky.width, sh = scene.sky.height;
+  const k = Math.max(W / sw, H / sh), cw = W / k, ch = H / k, sx = (sw - cw) / 2, sy = Math.max(0, (sh - ch) * 0.3);
+  c.fillStyle = '#05030b'; c.fillRect(0, 0, W, H);
+  c.drawImage(scene.sky, sx, sy, cw, ch, 0, 0, W, H);
+  c.drawImage(scene.props, sx, sy, cw, ch, 0, 0, W, H);
+  c.globalCompositeOperation = 'lighter'; c.drawImage(sparks.cv, sx, sy, cw, ch, 0, 0, W, H); c.globalCompositeOperation = 'source-over';
+}
+function drawCard() {
+  const cv = $('#cardCanvas'), c = cv.getContext('2d'), W = cv.width, H = cv.height, name = $('#cardName').value.trim();
+  c.drawImage(snap, 0, 0);
+  let g = c.createLinearGradient(0, 0, 0, H * 0.45);
+  g.addColorStop(0, 'rgba(5,3,11,0.7)'); g.addColorStop(1, 'rgba(5,3,11,0)');
+  c.fillStyle = g; c.fillRect(0, 0, W, H * 0.45);
+  g = c.createLinearGradient(0, H * 0.7, 0, H);
+  g.addColorStop(0, 'rgba(5,3,11,0)'); g.addColorStop(1, 'rgba(5,3,11,0.85)');
+  c.fillStyle = g; c.fillRect(0, H * 0.7, W, H * 0.3);
+  c.textAlign = 'center'; c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 24;
+  c.fillStyle = '#ffb627'; c.font = '128px "Yatra One", "Noto Sans Devanagari", sans-serif';
+  c.fillText('शुभ दीपावली', W / 2, 200);
+  c.fillStyle = '#fff4e2'; c.font = '700 64px "Chakra Petch", sans-serif';
+  if ('letterSpacing' in c) c.letterSpacing = '12px';
+  c.fillText('HAPPY DIWALI', W / 2, 296);
+  if ('letterSpacing' in c) c.letterSpacing = '0px';
+  if (name) { c.font = '500 50px Barlow, sans-serif'; c.fillStyle = '#ffe2b0'; c.fillText('with love from ' + name, W / 2, H - 150); }
+  c.shadowBlur = 0; c.font = '28px "Share Tech Mono", monospace'; c.fillStyle = 'rgba(220,205,230,0.75)';
+  c.fillText('Made with Patakha · ARTIN Studios', W / 2, H - 64);
+}
+async function openCard() {
+  Audio.unlock();
+  // light up the sky first if it's quiet, so every card has fireworks
+  if (sparks.count < 250) {
+    const cols = ['violet', 'gold', 'green', 'red', 'blue'];
+    for (let i = 0; i < 3; i++) burst(st, scene.w * (0.25 + i * 0.25), scene.horizon * (0.3 + Math.random() * 0.25), { type: i === 1 ? 'willow' : 'peony', colour: cols[Math.floor(Math.random() * cols.length)], size: 0.7 });
+    await new Promise((r) => setTimeout(r, 650));
+  }
+  takeSnapshot();
+  await Promise.all(['128px "Yatra One"', '700 64px "Chakra Petch"', '500 50px Barlow', '28px "Share Tech Mono"'].map((f) => document.fonts.load(f, 'शुभ दीपावली HAPPY').catch(() => {})));
+  drawCard();
+  openSheet('#card');
+}
+$('#btnCard').addEventListener('click', openCard);
+$('#cardName').addEventListener('input', drawCard);
+$('#btnCardShare').addEventListener('click', () => {
+  $('#cardCanvas').toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'patakha-diwali.png', { type: 'image/png' });
+    try {
+      if (NATIVE?.shareImage) {
+        const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
+        NATIVE.shareImage(b64);
+      } else if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Happy Diwali', text: 'शुभ दीपावली! 🪔' });
+      } else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        toast('Card saved to your downloads');
+      }
+    } catch (e) { if (e?.name !== 'AbortError') toast('Could not share the card'); }
+  }, 'image/png');
+});
+
+// ------------------------------------------------------------------ themes
+function renderThemes() {
+  const box = $('#themes'); box.innerHTML = '';
+  for (const [id, t] of Object.entries(THEMES)) {
+    const b = document.createElement('button');
+    b.className = 'theme cut'; b.setAttribute('aria-pressed', String(settings.theme === id));
+    b.innerHTML = `<i style="background:linear-gradient(${t.sky[0]},${t.sky[2]} 60%,${t.wall[0]} 62%,${t.floor[1]})"></i><b>${t.name}</b><span lang="hi">${t.hi}</span>`;
+    b.addEventListener('click', () => { settings.theme = id; save(); scene.setTheme(id); renderThemes(); Audio.tick(); });
+    box.appendChild(b);
+  }
 }
 
 // ------------------------------------------------------------------ tray
@@ -212,7 +353,7 @@ function toast(msg) {
 }
 
 // ------------------------------------------------------------------ sheets
-const sheets = ['#welcome', '#settings', '#unlock'];
+const sheets = ['#welcome', '#settings', '#unlock', '#card'];
 function openSheet(sel) { $(sel).hidden = false; }
 function closeSheet(sel) { $(sel).hidden = true; }
 document.querySelectorAll('.sheet-wrap').forEach((w) => {
@@ -229,7 +370,8 @@ window.artinBack = () => {
 function openSettings() {
   $('#optVol').value = settings.vol; $('#optVib').checked = settings.vib; $('#optVibK').value = settings.vibK;
   $('#optTorch').checked = Torch.active; $('#optAmbient').checked = settings.ambient; $('#optShake').checked = settings.shake;
-  $('#optVib').disabled = !Haptics.supported;
+  $('#optVib').disabled = !Haptics.supported; $('#optMic').value = settings.micSens;
+  renderThemes();
   $('#torchNote').textContent = NATIVE ? '' : Torch.possible
     ? 'Flashlight bursts use the camera flash (Chrome on Android). Your browser will ask for camera permission. The camera image is never used.'
     : 'Flashlight bursts need a phone with a flash, in Chrome on Android, or the Patakha app.';
@@ -243,6 +385,7 @@ $('#optVibK').addEventListener('change', (e) => { settings.vibK = +e.target.valu
 $('#optTorch').addEventListener('change', (e) => setTorch(e.target.checked));
 $('#optAmbient').addEventListener('change', (e) => { settings.ambient = e.target.checked; save(); });
 $('#optShake').addEventListener('change', (e) => { settings.shake = e.target.checked; save(); });
+$('#optMic').addEventListener('input', (e) => { settings.micSens = +e.target.value; Mic.sensitivity = settings.micSens; save(); });
 
 // torch
 async function setTorch(on) {
@@ -337,6 +480,8 @@ setInterval(refreshTray, 60e3);
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { window.artinBack(); return; }
   if (!$('#welcome').hidden || e.target.closest?.('input')) return;
+  if (e.key === 'm') $('#btnMute').click();
+  if (e.key === 'c') $('#btnClear').click();
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= CRACKERS.length) select(CRACKERS[n - 1].id, true);
   if (e.key === ' ' || e.key === 'Enter') {
@@ -358,6 +503,7 @@ async function prewarm() {
 
 function start() {
   Haptics.enabled = settings.vib; Haptics.intensity = settings.vibK; Audio.setVolume(settings.vol);
+  Mic.sensitivity = settings.micSens; setMuted(settings.muted); scene.setTheme(settings.theme);
   renderTray(); resize(); select(settings.sel);
   requestAnimationFrame((t) => { last = t; frame(t); });
   prewarm();
