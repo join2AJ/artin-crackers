@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.9.0] — 2026-10-03 · Play build 9
+## [0.9.0] — 2026-10-03 · Play build 9 · `de41efb`
 ### Added
 - **First-run tutorial**, step by step:
   - "Slide on the joystick to walk" and "Slide here to look around", with the other half of the screen dimmed and an animated hand;
