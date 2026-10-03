@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.5.0] — 2026-10-03 · Play build 5
+## [0.5.0] — 2026-10-03 · Play build 5 · `9466c21`
 ### Added
 - **Green City background**, now the default for everyone: a deep teal-green night with a soft aurora glow, wind turbines turning on the hills (with blinking red tip lights), rooftop gardens and solar panels on the buildings, tulsi and fern planters along the wall, and fireflies drifting over the terrace. Eleven backgrounds in all.
 ### Changed
