@@ -25,7 +25,7 @@ git commit -am "Release 0.2.0"
 git push                                    # the Tag releases workflow then tags v0.2.0 automatically
 # (or manually: git tag -a v0.2.0 -m "Patakha 0.2.0" && git push origin v0.2.0)
 # 4b. once tagged, add that commit's short hash to its CHANGELOG heading in the next change:  · `abc1234`
-# 4. build: cd android && ./gradlew bundleRelease assembleRelease   (once the Android wrapper exists)
+# 4. build: cd android && ./gradlew lintRelease bundleRelease assembleRelease   (or run the GitHub "Android build" workflow)
 # 5. upload app-release.aab to Play (internal testing first), and keep the file with the tag
 ```
 Netlify deploys the website automatically from the pushed commit.

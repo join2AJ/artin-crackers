@@ -9,6 +9,23 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-03 · Play build 7
+### Added
+- **Android app** (`android/`, app ID `com.artinstudios.crackers`, minSdk 26, target/compile SDK 36, AGP 8.13, Gradle wrapper). A native WebView wrapper bundles the web app from `assets/www` through WebViewAssetLoader, so it works fully offline.
+  - `window.ArtinNative`:
+    - vibration with real strength control (each cracker's sound envelope becomes a motor-strength curve);
+    - the flashlight through CameraManager (no camera permission needed);
+    - `shareImage()`, which shares greeting cards through Android's share sheet via a FileProvider;
+    - screen orientation.
+  - **Microphone for the diyas:** the page's request is passed to Android's runtime permission prompt and granted only if the player allows it.
+  - **Back button:** closes open sheets first, then exits.
+  - **Look:** a green status bar and splash, and full-screen with the camera notch kept clear.
+  - `window.ArtinStore`: AdMob banner and rewarded ads behind UMP consent, with retries on failed loads and the ad status in Settings, plus Play Billing for `remove_ads`, `all_crackers` and `festival_pack`, including restore. Debug builds always use Google's test ads, and so do release builds until the Patakha ad units are added to `android/gradle.properties`.
+  - **Launcher icons:** adaptive icon (sparkler-A foreground on a green background), a monochrome icon for Android 13+ themed icons, and legacy square and round icons.
+- GitHub workflow `android.yml`: builds a signed AAB and APK when the `PATAKHA_KEYSTORE_BASE64`, `PATAKHA_KEYSTORE_PASSWORD`, `PATAKHA_KEY_ALIAS` and `PATAKHA_KEY_PASSWORD` secrets are set, otherwise a debug APK.
+### Changed
+- Docs: Android build steps in `README.md`, `CLAUDE.md` and `docs/RELEASING.md`.
+
 ## [0.6.0] — 2026-10-03 · Play build 6 · `dbd8e8f`
 ### Added
 - **Cracker variants.** Pick a variant from the chip bar above the tray. Each variant has its own sound and is remembered:

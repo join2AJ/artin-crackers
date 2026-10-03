@@ -1,0 +1,48 @@
+name: Android build
+
+# Builds the Patakha Android app. With signing secrets set it produces a signed
+# Play Store bundle (.aab) and APK; without them, a debug APK for testing.
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   PATAKHA_KEYSTORE_BASE64   base64 of patakha-upload.jks
+#   PATAKHA_KEYSTORE_PASSWORD, PATAKHA_KEY_ALIAS, PATAKHA_KEY_PASSWORD
+on:
+  workflow_dispatch:
+    inputs:
+      versionCode: { description: 'Override versionCode (blank = version.json)', required: false, default: '' }
+      versionName: { description: 'Override versionName (blank = version.json)', required: false, default: '' }
+  push:
+    paths: ['version.json', 'android/**', 'js/**', 'css/**', 'index.html', 'fonts/**', 'icons/**', '.github/workflows/android.yml']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: android } }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: '17' }
+      # GitHub's ubuntu runners ship the Android SDK; point Gradle at it (AGP fetches missing platforms itself)
+      - name: Use preinstalled Android SDK
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > local.properties
+      - name: Restore signing key
+        env: { KS: '${{ secrets.PATAKHA_KEYSTORE_BASE64 }}' }
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"; echo "PATAKHA_KEYSTORE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"; echo "SIGNED=1" >> "$GITHUB_ENV"; fi
+      - name: Build
+        env:
+          PATAKHA_KEYSTORE_PASSWORD: ${{ secrets.PATAKHA_KEYSTORE_PASSWORD }}
+          PATAKHA_KEY_ALIAS: ${{ secrets.PATAKHA_KEY_ALIAS }}
+          PATAKHA_KEY_PASSWORD: ${{ secrets.PATAKHA_KEY_PASSWORD }}
+        run: |
+          ARGS=""; [ -n "${{ github.event.inputs.versionCode }}" ] && ARGS="$ARGS -PversionCode=${{ github.event.inputs.versionCode }}"
+          [ -n "${{ github.event.inputs.versionName }}" ] && ARGS="$ARGS -PversionName=${{ github.event.inputs.versionName }}"
+          if [ -n "$SIGNED" ]; then ./gradlew --no-daemon bundleRelease assembleRelease $ARGS
+          else ./gradlew --no-daemon assembleDebug $ARGS; fi
+      - uses: actions/upload-artifact@v5
+        with:
+          name: patakha-android
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

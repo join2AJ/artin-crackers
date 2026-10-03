@@ -1,0 +1,82 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Single source of truth for the version: ../version.json (see CHANGELOG.md).
+def appVersion = new groovy.json.JsonSlurper().parse(rootProject.file('../version.json'))
+
+// Release signing: android/keystore.properties (local, git-ignored) or env vars (CI).
+def ksProps = new Properties()
+def ksFile = rootProject.file('keystore.properties')
+if (ksFile.exists()) ksFile.withInputStream { ksProps.load(it) }
+def ks = { String key, String env -> ksProps.getProperty(key) ?: System.getenv(env) }
+
+android {
+    namespace 'com.artinstudios.crackers'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.artinstudios.crackers'
+        minSdk 26 // Android 8.0+: VibrationEffect (amplitude vibration) needs API 26
+        targetSdk 36
+        // From version.json — bump it (and CHANGELOG.md) for every release; -PversionCode=N overrides.
+        versionCode((project.findProperty('versionCode') ?: appVersion.versionCode) as int)
+        versionName project.findProperty('versionName') ?: appVersion.version
+        // AdMob IDs: set admobAppId / admobBanner / admobRewarded in android/gradle.properties.
+        // Until then Google's official TEST ids are used (safe to click, no revenue).
+        manifestPlaceholders = [admobAppId: (project.findProperty('admobAppId') ?: 'ca-app-pub-3940256099942544~3347511713')]
+        buildConfigField 'String', 'AD_BANNER', "\"${project.findProperty('admobBanner') ?: 'ca-app-pub-3940256099942544/9214589741'}\""
+        buildConfigField 'String', 'AD_REWARDED', "\"${project.findProperty('admobRewarded') ?: 'ca-app-pub-3940256099942544/5224354917'}\""
+    }
+
+    signingConfigs {
+        release {
+            def store = ks('storeFile', 'PATAKHA_KEYSTORE')
+            if (store) {
+                storeFile file(store)
+                storePassword ks('storePassword', 'PATAKHA_KEYSTORE_PASSWORD')
+                keyAlias ks('keyAlias', 'PATAKHA_KEY_ALIAS')
+                keyPassword ks('keyPassword', 'PATAKHA_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            // never show live ads on development builds
+            manifestPlaceholders = [admobAppId: 'ca-app-pub-3940256099942544~3347511713']
+            buildConfigField 'String', 'AD_BANNER', '"ca-app-pub-3940256099942544/9214589741"'
+            buildConfigField 'String', 'AD_REWARDED', '"ca-app-pub-3940256099942544/5224354917"'
+        }
+        release {
+            minifyEnabled false
+            if (ks('storeFile', 'PATAKHA_KEYSTORE')) signingConfig signingConfigs.release
+        }
+    }
+
+    buildFeatures { buildConfig true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    sourceSets {
+        main { assets.srcDirs += "${layout.buildDirectory.get().asFile}/generated/web" }
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.17.1'
+    implementation 'androidx.core:core:1.17.0' // FileProvider, for sharing greeting cards
+    implementation 'com.google.android.gms:play-services-ads:25.5.0'
+    implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+    implementation 'com.android.billingclient:billing:9.1.0'
+}
+
+// Copy the web app (repo root) into the APK as offline assets/www.
+def syncWeb = tasks.register('syncWeb', Sync) {
+    from(rootProject.file('..')) {
+        include 'index.html', 'privacy.html', 'version.json', 'css/**', 'js/**', 'fonts/**', 'icons/**', 'manifest.webmanifest'
+    }
+    into layout.buildDirectory.dir('generated/web/www')
+}
+tasks.named('preBuild') { dependsOn syncWeb }

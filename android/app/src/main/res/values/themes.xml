@@ -1,0 +1,8 @@
+<resources>
+    <color name="patakha_bg">#03100B</color>
+    <style name="Theme.Patakha" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/patakha_bg</item>
+        <item name="android:statusBarColor">@color/patakha_bg</item>
+        <item name="android:navigationBarColor">@color/patakha_bg</item>
+    </style>
+</resources>

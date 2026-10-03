@@ -3,7 +3,18 @@
 **by ARTIN Studios.** A green, smoke-free Diwali: every virtual cracker shows the CO₂ and smoke you kept out of the air, with green badges and a shareable Green Diwali card. Burst anar, chakri, rockets, ladi and sutli bombs on a rooftop on Diwali night, with sound made for each cracker, vibration that follows every blast and flashlight bursts. Set crackers down and light their fuses with an agarbatti, candle or phuljhadi. Draw with a phuljhadi, blow out the diyas through your mic, pick from eleven backgrounds (Green City, rooftop, home, village, river ghat, palace, Himalaya, desert, border post, camp, open sky), run an auto show, learn about Diwali, see the CO₂ and smoke you saved, and share a greeting card. All the dhamaka, none of the smoke.
 
 - **Web:** static site, no build step, offline PWA (Netlify serves the repo root).
-- **Android:** native WebView wrapper (coming next), app ID `com.artinstudios.crackers`.
+- **Android:** native WebView wrapper in `android/`, app ID `com.artinstudios.crackers` (minSdk 26, target 36).
+
+## Build the Android app
+```bash
+cd android
+echo "sdk.dir=/path/to/android-sdk" > local.properties
+# signing: android/keystore.properties (git-ignored) with storeFile, storePassword, keyAlias, keyPassword
+./gradlew lintRelease assembleRelease bundleRelease
+# → app/build/outputs/apk/release/app-release.apk  (install on a phone)
+# → app/build/outputs/bundle/release/app-release.aab (upload to Google Play)
+```
+The web files are copied into the app at build time, so rebuild after any web change. Or run the GitHub *Android build* workflow with the `PATAKHA_*` signing secrets set.
 
 ## Run locally
 ```bash

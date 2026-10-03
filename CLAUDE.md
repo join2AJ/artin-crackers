@@ -1,6 +1,6 @@
 # Patakha: project rules (read before changing anything)
 
-Patakha is a Diwali crackers simulator by **ARTIN Studios**. It's a static web app (Netlify: `index.html`, `css/`, `js/`). A native Android wrapper will live in `android/` and bundle the same files (app ID `com.artinstudios.crackers`).
+Patakha is a Diwali crackers simulator by **ARTIN Studios**. It's a static web app (Netlify: `index.html`, `css/`, `js/`). A native Android wrapper in `android/` bundles the same files (app ID `com.artinstudios.crackers`). **Android is the main target**: test features with the native bridge in mind (vibration strength, torch, mic permission, share, back button).
 
 **Never put personal names anywhere** (code, docs, store text, commits). The studio name "ARTIN Studios" is the only public name. Public contact: artinstudios.official@gmail.com.
 
@@ -25,6 +25,7 @@ See `docs/RELEASING.md` for the release and rollback procedure. Update `README.m
 - `js/visuals.js`: one class per cracker kind; reads the same plan so visuals, sound, vibration and torch line up. `static torch(plan)` lists flashlight bursts.
 - `js/fx.js`: haptics mixer (sound envelope → vibration), flashlight, spark particles. `js/scene.js`: background themes (`THEMES`: green (default), city, home, village, ghat, palace, snow, desert, army, camp, open), diyas, toran, rangoli, weather, debris. `js/lighter.js`: the agarbatti/candle/phuljhadi held to fuses (real lighting). `MANUAL` in `js/crackers.js`: field-manual text, shelf and eco figures (smoke/PM2.5 marked `src: 'study'` are measured; the rest are estimates and must be labelled so). `js/mic.js`: blow detection. `js/store.js`: free/premium, rewarded unlocks, purchases. `js/app.js`: UI and loop.
 - Native bridge names (Android): `window.ArtinNative` (vibration, torch, `shareImage(base64Png)` for the greeting card), `window.ArtinStore` (ads and billing; events via `window.artinStoreEvent`), back button calls `window.artinBack()`.
+- Android: `cd android && ./gradlew lintRelease assembleRelease bundleRelease` (needs `local.properties` sdk.dir and `keystore.properties`). Lint must report 0 errors. Java bridge: `NativeBridge.java` (ArtinNative), `Monetization.java` (ArtinStore), `MainActivity.java` (WebView, mic permission, back).
 - `?debug` exposes `window.__patakha` (actives, scene, lighter) for automated tests.
 - Art style is comic/cel-shaded: flat fills, a hard shadow tone, ink outlines (`INK` in `js/scene.js`). Keep new art in that style.
 - Store graphics generator: `dev/store.html` (icon, feature graphic).
