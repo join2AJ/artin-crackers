@@ -9,7 +9,7 @@ roll back to (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## [Unreleased]
 
-## [0.8.0] — 2026-10-03 · Play build 8
+## [0.8.0] — 2026-10-03 · Play build 8 · `4c2378d`
 ### Added
 - **Patakha is now a 3D game.** Walk around a low-poly Indian neighbourhood on Diwali night in first person, set crackers down and light them yourself. Built with Three.js r170 (MIT, vendored in `js/vendor/`) and cel-shaded toon materials for the comic look.
 - **Four maps**, each with toran lights, diyas, street lamps and props:
